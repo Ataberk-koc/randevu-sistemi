@@ -1,10 +1,9 @@
 // app/admin/randevular/page.tsx
 import { prisma } from "@/lib/prisma";
-import { NewAppointment } from "./new-appointment";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {Clock, User } from "lucide-react";
-
+import {NewAppointment} from "./new-appointment";
 export default async function AppointmentsPage() {
   // Varsayılan olarak bugünün ve yarının randevularını çekelim (Basit görünüm)
   const appointments = await prisma.appointment.findMany({
