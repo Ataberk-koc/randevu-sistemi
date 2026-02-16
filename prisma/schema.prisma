@@ -37,6 +37,8 @@ model Service {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  usages ServiceProduct[]
 }
 
 // 3. ÜRÜNLER (Randevuda satılabilecek ekstralar)
@@ -50,6 +52,8 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   description String? 
+
+  serviceUsages ServiceProduct[]
 }
 
 // 4. RANDEVULAR (Ana Tablo)
@@ -128,4 +132,17 @@ model DayOff {
   id        String   @id @default(uuid())
   date      DateTime @unique // Hangi tarih kapalı?
   reason    String?  // Neden? (Örn: Resmi Tatil)
+}
+
+model ServiceProduct {
+  id        String  @id @default(cuid())
+  serviceId String
+  productId String
+  quantity  Int     @default(1)
+
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
+  @@index([productId])
 }

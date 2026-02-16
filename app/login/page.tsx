@@ -1,85 +1,65 @@
-import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import { compare } from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+"use client";
+
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
-  
-  // Bu fonksiyon sunucuda çalışır (Backend API yazmaya gerek kalmadan!)
-  async function loginAction(formData: FormData) {
-    "use server"; 
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+
+    const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    // 1. Kullanıcıyı bul
-    const user = await prisma.user.findUnique({
-      where: { email },
+    const result = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
     });
 
-    // 2. Kullanıcı yoksa veya şifre yanlışsa
-    if (!user || !(await compare(password, user.password))) {
-      console.log("Hatalı giriş!");
-      // Gerçek projede burada UI'ya hata mesajı döneriz, şimdilik console'a yazsın.
-      return; 
+    if (result?.error) {
+      toast.error(result.error);
+      setLoading(false);
+    } else {
+      toast.success("Giriş başarılı, yönlendiriliyorsunuz...");
+      router.push("/admin/dashboard");
+      router.refresh();
     }
-
-    // 3. Giriş Başarılı! Çerez oluştur.
-    const cookieStore = await cookies();
-    
-    // Basit bir güvenlik önlemi: Sadece user ID'yi saklayalım.
-    cookieStore.set("admin_session", user.id, { 
-      httpOnly: true, // JavaScript ile erişilemesin (Güvenlik)
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 // 1 gün geçerli
-    });
-
-    // 4. Admin paneline ışınla
-    redirect("/admin/dashboard");
   }
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-slate-50">
-      <Card className="w-100 shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-2xl text-center">Yönetici Girişi</CardTitle>
-          <CardDescription className="text-center">
-            Randevu sistemini yönetmek için giriş yapın.
-          </CardDescription>
+    <div className="flex h-screen items-center justify-center bg-slate-50">
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">Yönetici Girişi</CardTitle>
+          <p className="text-sm text-center text-slate-500">Sisteme erişmek için bilgilerinizi girin</p>
         </CardHeader>
-        <form action={loginAction}>
-          <CardContent className="space-y-4">
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">E-posta</Label>
-              <Input 
-                id="email" 
-                name="email" 
-                type="email" 
-                defaultValue="admin@admin.com" // Test kolaylığı için dolu gelsin
-                required 
-              />
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" name="email" type="email" placeholder="admin@example.com" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Şifre</Label>
-              <Input 
-                id="password" 
-                name="password" 
-                type="password" 
-                defaultValue="123123" // Test kolaylığı için dolu gelsin
-                required 
-              />
+              <Input id="password" name="password" type="password" required />
             </div>
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" className="w-full">
-              Giriş Yap
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Giriş Yap"}
             </Button>
-          </CardFooter>
-        </form>
+          </form>
+        </CardContent>
       </Card>
     </div>
   );
