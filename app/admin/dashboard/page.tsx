@@ -1,50 +1,88 @@
-import { prisma } from "@/lib/prisma";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { getDashboardStats } from "./actions";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CalendarDays, Users, Banknote, Scissors } from "lucide-react";
+import { format } from "date-fns";
+import { tr } from "date-fns/locale";
 
 export default async function DashboardPage() {
-  // Veritabanından gerçek sayıları çekelim ki çalıştığını görelim
-  const serviceCount = await prisma.service.count();
-  const productCount = await prisma.product.count();
-  const userCount = await prisma.user.count();
+  const stats = await getDashboardStats();
 
   return (
-    <div className="p-10 bg-slate-50 min-h-screen">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800">Hoş Geldin, Admin! 👋</h1>
-          <p className="text-slate-600">Sistemin sorunsuz çalışıyor.</p>
-        </div>
-        <Link href="/">
-           <Button variant="outline">Çıkış Yap</Button>
-        </Link>
+    <div className="space-y-8 p-8">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Yönetim Paneli</h1>
+        <p className="text-muted-foreground">İşletmenizin bugünkü özet durumu.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Özet Kartları */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h3 className="font-medium text-slate-500">Kayıtlı Hizmetler</h3>
-          <p className="text-4xl font-bold mt-2 text-indigo-600">{serviceCount}</p>
-        </div>
-        
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h3 className="font-medium text-slate-500">Kayıtlı Ürünler</h3>
-          <p className="text-4xl font-bold mt-2 text-emerald-600">{productCount}</p>
-        </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Bugünkü Randevular</CardTitle>
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.todayAppointmentsCount}</div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <h3 className="font-medium text-slate-500">Toplam Kullanıcı</h3>
-            <p className="text-4xl font-bold mt-2 text-blue-600">{userCount}</p>
-        </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Bugünkü Kazanç</CardTitle>
+            <Banknote className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats.todayEarning} ₺</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Aktif Hizmetler</CardTitle>
+            <Scissors className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalServices}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Toplam Müşteri</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">--</div>
+          </CardContent>
+        </Card>
       </div>
-      
-      <div className="mt-10 p-6 bg-blue-50 rounded-lg border border-blue-100">
-        <h2 className="font-bold text-lg text-blue-800">🚀 Sıradaki Görev:</h2>
-        <p className="text-blue-700 mt-2">
-          Admin girişi ve veritabanı bağlantısı tamam! 
-          Sıradaki adımda <strong>Randevu Takvimini</strong> veya <strong>Hizmet Ekleme Formunu</strong> yapabiliriz.
-        </p>
-      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Sıradaki Randevular</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {stats.upcomingAppointments.length > 0 ? (
+              stats.upcomingAppointments.map((appt) => (
+                <div key={appt.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
+                  <div className="space-y-1">
+                    <p className="font-medium">{appt.user.name || appt.user.email}</p>
+                    <p className="text-sm text-muted-foreground">{appt.service.name}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{format(new Date(appt.date), "HH:mm")}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(appt.date), "d MMMM", { locale: tr })}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">Yakın zamanda randevu bulunmuyor.</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

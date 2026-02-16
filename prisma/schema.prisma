@@ -47,6 +47,9 @@ model Product {
   taxRate     Int      // KDV Oranı (Örn: 20)
   stock       Int      // Stok takibi için
   isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  description String? 
 }
 
 // 4. RANDEVULAR (Ana Tablo)
