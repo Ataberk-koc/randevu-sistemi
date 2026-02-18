@@ -57,7 +57,16 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         {/* Sil ve Düzenle Butonları */}
         <div className="flex gap-2 mt-4 md:mt-0">
           <DeleteCustomerButton customerId={customer.id} />
-          <EditCustomerDialog customer={customer} />
+          <EditCustomerDialog customer={{
+            ...customer,
+            appointments: customer.appointments.map(a => ({
+              ...a,
+              service: {
+                ...a.service,
+                price: a.service.price?.toString?.() ?? a.service.price
+              }
+            }))
+          }} />
         </div>
       </div>
 
