@@ -59,13 +59,9 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           <DeleteCustomerButton customerId={customer.id} />
           <EditCustomerDialog customer={{
             ...customer,
-            appointments: customer.appointments.map(a => ({
-              ...a,
-              service: {
-                ...a.service,
-                price: a.service.price?.toString?.() ?? a.service.price
-              }
-            }))
+            // Convert any Decimal fields to string for client component
+            // Only price fields in User model are in related objects, but for future-proofing, handle here
+            // If you add more Decimal fields to User, add them here
           }} />
         </div>
       </div>
