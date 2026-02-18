@@ -52,3 +52,44 @@ export async function createAppointment(formData: FormData) {
   await prisma.appointment.create({ data: { date: start, endDate: addMinutes(start, service.duration), serviceId: sId, userId: uId, status: "APPROVED" } });
   revalidatePath("/admin/randevular");
 }
+
+export async function completeAppointment(appointmentId: string) {
+  // 1. Randevuyu ve içindeki hizmetin reçetesini (kullanılan ürünleri) getir
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: {
+      service: {
+        include: {
+          usages: true // ServiceProduct tablosundaki ürünler
+        }
+      }
+    }
+  });
+
+  if (!appointment) throw new Error("Randevu bulunamadı.");
+
+  // 2. İşlem: Randevuyu "COMPLETED" yap ve stoktan düş
+  // Bunları tek bir transaction içinde yapıyoruz ki hata olursa hiçbirini yapmasın
+  await prisma.$transaction(async (tx) => {
+    // Randevu durumunu güncelle
+    await tx.appointment.update({
+      where: { id: appointmentId },
+      data: { status: "COMPLETED" } 
+    });
+
+    // Reçetedeki her ürün için stok düşüşü yap
+    for (const usage of appointment.service.usages) {
+      await tx.product.update({
+        where: { id: usage.productId },
+        data: {
+          stock: {
+            decrement: usage.quantity // Belirlenen miktar kadar düş
+          }
+        }
+      });
+    }
+  });
+
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/randevular");
+}

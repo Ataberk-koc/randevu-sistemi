@@ -14,7 +14,7 @@ model User {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+  address       String?
   name      String
   email     String   @unique
   phone     String   @unique // Randevu için telefon şart

@@ -46,10 +46,16 @@ export default function AdminLayout({
       icon: Package,
     },
     {
+      title: "Müşteriler",
+      href: "/admin/musteriler",
+      icon: User,
+    },
+    {
       title: "Ayarlar",
       href: "/admin/ayarlar",
       icon: Settings,
     },
+    
   ];
 
   return (
