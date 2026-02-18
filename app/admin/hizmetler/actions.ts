@@ -1,61 +1,57 @@
-// app/admin/hizmetler/action.ts
 "use server";
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+export async function getServices() {
+  return await prisma.service.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 export async function upsertService(formData: FormData) {
-  const id = formData.get("id") as string;
+  const id = formData.get("id") as string | null;
   const name = formData.get("name") as string;
-  const price = parseFloat(formData.get("price") as string);
-  const duration = parseInt(formData.get("duration") as string);
-  const bufferTime = parseInt(formData.get("bufferTime") as string) || 0;
-  
-  // Dialog'dan gelen JSON formatındaki ürün listesini alıyoruz
-  const usedProductsRaw = formData.get("usedProducts") as string;
-  const usedProducts = JSON.parse(usedProductsRaw || "[]");
+  const price = parseFloat(formData.get("price") as string) || 0;
+  const duration = parseInt(formData.get("duration") as string) || 30; // Varsayılan 30 dk
+  const description = formData.get("description") as string || "";
 
-  // Hizmeti oluştur veya güncelle (Upsert)
-  const service = await prisma.service.upsert({
-    where: { id: id || "new_service" },
-    update: {
-      name,
-      price,
-      duration,
-      bufferTime,
-    },
-    create: {
-      name,
-      price,
-      duration,
-      bufferTime,
-    },
-  });
+  const data = {
+    name,
+    price,
+    duration,
+    description,
+    isActive: true,
+  };
 
-  // Reçete (Hizmet-Ürün ilişkisi) senkronizasyonu
-  // Önce bu hizmete ait eski ürün bağlarını siliyoruz
-  await prisma.serviceProduct.deleteMany({
-    where: { serviceId: service.id },
-  });
+  try {
+    if (id && id !== "undefined" && id !== "") {
+      // GÜNCELLEME
+      await prisma.service.update({
+        where: { id },
+        data,
+      });
+    } else {
+      // YENİ KAYIT
+      await prisma.service.create({
+        data,
+      });
+    }
 
-  // Eğer ürün seçildiyse yeni bağları oluşturuyoruz
-  if (usedProducts.length > 0) {
-    await prisma.serviceProduct.createMany({
-      data: usedProducts.map((p: { id: string, quantity: number }) => ({
-        serviceId: service.id,
-        productId: p.id,
-        quantity: p.quantity,
-      })),
-    });
+    revalidatePath("/admin/hizmetler");
+    return { success: true };
+  } catch (error) {
+    console.error("Hizmet işlem hatası:", error);
+    return { success: false, error: "İşlem başarısız oldu." };
   }
-
-  revalidatePath("/admin/hizmetler");
 }
 
 export async function deleteService(id: string) {
-  await prisma.service.delete({
-    where: { id },
-  });
-
-  revalidatePath("/admin/hizmetler");
+  try {
+    await prisma.service.delete({ where: { id } });
+    revalidatePath("/admin/hizmetler");
+    return { success: true };
+  } catch {
+    return { success: false, error: "Silinemedi." };
+  }
 }

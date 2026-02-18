@@ -5,144 +5,117 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Package } from "lucide-react";
+import { Plus, Loader2, Pencil } from "lucide-react";
 import { upsertService } from "./actions";
+import { toast } from "sonner";
+// Prisma tipleri için import (Decimal hatası almamak için any kaçışını kullanacağız veya tip tanımlayacağız)
+import { Decimal } from "@prisma/client/runtime/library";
 
-// Hata veren 'any' yerine güvenli tipler tanımlıyoruz
-interface Product {
+interface Service {
   id: string;
   name: string;
-  price: number | string | { toString(): string }; // Decimal uyumluluğu için
-  stock: number;
+  price: Decimal | number | string;
+  duration: number;
+  description?: string | null;
 }
 
-interface SelectedProduct {
-  id: string;
-  quantity: number;
-}
-
-export function ServiceDialog({ products }: { products: Product[] }) {
+export function ServiceDialog({ service }: { service?: Service }) {
   const [open, setOpen] = useState(false);
-  const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleProductToggle = (productId: string, isChecked: boolean) => {
-    if (isChecked) {
-      setSelectedProducts([...selectedProducts, { id: productId, quantity: 1 }]);
-    } else {
-      setSelectedProducts(selectedProducts.filter((p) => p.id !== productId));
+  async function handleSubmit(formData: FormData) {
+    setLoading(true);
+    try {
+      const result = await upsertService(formData);
+      if (result.success) {
+        toast.success(service ? "Hizmet güncellendi." : "Hizmet oluşturuldu.");
+        setOpen(false);
+      } else {
+        toast.error("Bir hata oluştu.");
+      }
+    } catch {
+      toast.error("Beklenmedik bir hata.");
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleQuantityChange = (productId: string, qty: number) => {
-    setSelectedProducts(
-      selectedProducts.map((p) =>
-        p.id === productId ? { ...p, quantity: qty } : p
-      )
-    );
-  };
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2 bg-blue-600 hover:bg-blue-700">
-          <PlusCircle className="w-4 h-4" />
-          Yeni Hizmet Ekle
-        </Button>
+        {service ? (
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+            <Pencil className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="mr-2 h-4 w-4" /> Yeni Hizmet
+          </Button>
+        )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle>Yeni Hizmet Oluştur</DialogTitle>
-          <DialogDescription>
-            Hizmet detaylarını ve bu hizmette kullanılacak stok ürünlerini belirleyin.
-          </DialogDescription>
+          <DialogTitle>{service ? "Hizmeti Düzenle" : "Yeni Hizmet Ekle"}</DialogTitle>
         </DialogHeader>
-        
-        <form
-          action={async (formData) => {
-            formData.append("usedProducts", JSON.stringify(selectedProducts));
-            await upsertService(formData); 
-            setOpen(false);
-            setSelectedProducts([]);
-          }}
-          className="space-y-4"
-        >
-          <div className="grid gap-2">
-            <Label htmlFor="name">Hizmet Adı</Label>
-            <Input id="name" name="name" placeholder="Örn: Saç Kesimi" required />
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="price">Hizmet Fiyatı (TL)</Label>
-              <Input id="price" name="price" type="number" step="0.01" placeholder="500" required />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="duration">Süre (Dk)</Label>
-              <Input id="duration" name="duration" type="number" placeholder="45" required />
-            </div>
-          </div>
+        <form action={handleSubmit} className="space-y-4 pt-4">
+          {/* Düzenleme için gizli ID */}
+          {service && <input type="hidden" name="id" value={service.id} />}
 
           <div className="grid gap-2">
-            <Label htmlFor="bufferTime">Mola Süresi (Dk)</Label>
-            <Input 
-                id="bufferTime" 
-                name="bufferTime" 
-                type="number" 
-                defaultValue="10"
+            <Label htmlFor="name">Hizmet Adı</Label>
+            <Input
+              id="name"
+              name="name"
+              defaultValue={service?.name}
+              placeholder="Örn: Saç Kesimi"
+              required
             />
           </div>
 
-          <div className="space-y-3">
-            <Label className="flex items-center gap-2">
-              <Package className="w-4 h-4" /> Kullanılacak Ürünler (Reçete)
-            </Label>
-            <div className="grid gap-2 border rounded-md p-3 max-h-52 overflow-y-auto bg-slate-50/50">
-              {products.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-2">Henüz ürün eklenmemiş.</p>
-              ) : (
-                products.map((product) => (
-                  <div key={product.id} className="flex items-center justify-between gap-4 py-1 border-b last:border-0 border-slate-200">
-                    <div className="flex items-center space-x-2">
-                      {/* Standart HTML Checkbox kullanarak hata riskini sıfırladık */}
-                      <input 
-                        type="checkbox"
-                        id={`prod-${product.id}`}
-                        className="h-4 w-4 rounded border-gray-300 accent-blue-600 cursor-pointer"
-                        onChange={(e) => handleProductToggle(product.id, e.target.checked)}
-                      />
-                      <label htmlFor={`prod-${product.id}`} className="text-sm font-medium leading-none cursor-pointer">
-                        {product.name}
-                      </label>
-                    </div>
-                    {selectedProducts.find((p) => p.id === product.id) && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-slate-500">Miktar:</span>
-                        <Input 
-                          type="number" 
-                          className="w-16 h-7 text-xs" 
-                          min={1}
-                          defaultValue={1}
-                          onChange={(e) => handleQuantityChange(product.id, parseInt(e.target.value) || 1)}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="price">Ücret (₺)</Label>
+              <Input
+                id="price"
+                name="price"
+                type="number"
+                step="0.01"
+                defaultValue={service ? Number(service.price) : ""}
+                placeholder="0.00"
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="duration">Süre (Dakika)</Label>
+              <Input
+                id="duration"
+                name="duration"
+                type="number"
+                defaultValue={service?.duration || 30}
+                required
+              />
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="submit" className="w-full">Hizmeti Kaydet</Button>
-          </DialogFooter>
+          <div className="grid gap-2">
+            <Label htmlFor="description">Açıklama (Opsiyonel)</Label>
+            <Input
+              id="description"
+              name="description"
+              defaultValue={service?.description || ""}
+              placeholder="Hizmet detayları..."
+            />
+          </div>
+
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (service ? "Güncelle" : "Kaydet")}
+          </Button>
         </form>
       </DialogContent>
     </Dialog>

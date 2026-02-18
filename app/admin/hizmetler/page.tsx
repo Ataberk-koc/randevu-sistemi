@@ -1,52 +1,27 @@
-// app/admin/hizmetler/page.tsx
-import { prisma } from "@/lib/prisma";
-import { ServiceDialog } from "./service-dialog";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import { getServices, deleteService } from "./actions";
+import { ServiceDialog } from "./service-dialog"; // import yoluna dikkat
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Trash2, Scissors } from "lucide-react";
-import { deleteService } from "./actions";
+import { Trash2, Clock } from "lucide-react";
 
-export default async function HizmetlerPage() {
-  // Hem hizmetleri hem de stoktaki ürünleri çekiyoruz
-  const [services, productsRaw] = await Promise.all([
-    prisma.service.findMany({
-      include: {
-        usages: { // Reçetedeki ürünleri görmek istersen
-          include: { product: true }
-        }
-      },
-      orderBy: { name: 'asc' }
-    }),
-    prisma.product.findMany({
-      where: { isActive: true },
-      orderBy: { name: 'asc' }
-    })
-  ]);
-
-  // Decimal price'ı number'a çeviriyoruz
-  const products = productsRaw.map(p => ({
-    ...p,
-    price: typeof p.price === "object" && p.price?.toNumber ? p.price.toNumber() : p.price
-  }));
+export default async function ServicesPage() {
+  const services = await getServices();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Scissors className="h-8 w-8 text-blue-600" /> Hizmet Yönetimi
-          </h1>
-          <p className="text-slate-500">Sunulan hizmetleri ve kullanılan ürün reçetelerini yönetin.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Hizmet Yönetimi</h1>
+          <p className="text-slate-500">Randevu alınabilecek hizmetleri ve sürelerini yönetin.</p>
         </div>
-        {/* Ürün listesini dialog'a gönderiyoruz */}
-        <ServiceDialog products={products} />
+        <ServiceDialog />
       </div>
 
       <div className="bg-white rounded-xl border shadow-sm">
@@ -55,33 +30,61 @@ export default async function HizmetlerPage() {
             <TableRow>
               <TableHead>Hizmet Adı</TableHead>
               <TableHead>Süre</TableHead>
-              <TableHead>Fiyat</TableHead>
-              <TableHead>Kullanılan Ürünler</TableHead>
+              <TableHead>Ücret</TableHead>
               <TableHead className="text-right">İşlemler</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {services.map((service) => (
-              <TableRow key={service.id}>
-                <TableCell className="font-medium">{service.name}</TableCell>
-                <TableCell>{service.duration} dk</TableCell>
-                <TableCell>{Number(service.price)} ₺</TableCell>
-                <TableCell>
-                  <span className="text-xs text-slate-500">
-                    {service.usages.length > 0 
-                      ? `${service.usages.length} çeşit ürün` 
-                      : "Ürün eklenmemiş"}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <form action={async () => { "use server"; await deleteService(service.id); }}>
-                    <Button variant="ghost" size="icon" className="text-red-500">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </form>
+            {services.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-10 text-slate-500">
+                  Henüz hizmet eklenmemiş.
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              services.map((service) => (
+                <TableRow key={service.id}>
+                  <TableCell className="font-medium">
+                    <div>
+                      {service.name}
+                      {service.description && (
+                        <p className="text-xs text-slate-400 mt-0.5 font-normal">{service.description}</p>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5 text-slate-600">
+                      <Clock className="w-3.5 h-3.5" />
+                      {service.duration} dk
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-bold text-slate-900">
+                    {Number(service.price).toFixed(2)} ₺
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      {/* DÜZENLEME BUTONU */}
+                      <ServiceDialog 
+                        service={{
+                          ...service,
+                          price: Number(service.price) // Decimal -> Number çevrimi kritik!
+                        }} 
+                      />
+                      
+                      {/* SİLME BUTONU */}
+                      <form action={async () => {
+                        "use server";
+                        await deleteService(service.id);
+                      }}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-50">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </form>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
