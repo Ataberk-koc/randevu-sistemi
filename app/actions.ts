@@ -130,3 +130,40 @@ export async function createPublicAppointment(formData: FormData) {
     return { success: false, error: "İşlem sırasında bir hata oluştu." };
   }
 }
+
+// 4. Müşterinin E-posta ile Kendi Randevularını Sorgulaması
+export async function getCustomerAppointments(email: string) {
+  if (!email) return { success: false, error: "Lütfen bir e-posta adresi girin." };
+  
+  try {
+    // E-postaya göre kullanıcıyı ve randevularını (hizmet detaylarıyla) getir
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        appointments: {
+          include: { service: true },
+          orderBy: { date: 'desc' } // En yeni randevu en üstte
+        }
+      }
+    });
+
+    if (!user || user.appointments.length === 0) {
+      return { success: false, error: "Bu e-posta adresine ait bir randevu bulunamadı." };
+    }
+
+    // Decimal tipini Number'a çevirerek Client'a gönder
+    const formattedAppointments = user.appointments.map(appt => ({
+      id: appt.id,
+      serviceName: appt.service.name,
+      date: appt.date,
+      endDate: appt.endDate,
+      status: appt.status,
+      price: Number(appt.service.price)
+    }));
+
+    return { success: true, appointments: formattedAppointments };
+  } catch (error) {
+    console.error(error);
+    return { success: false, error: "Sorgulama sırasında sistemsel bir hata oluştu." };
+  }
+}

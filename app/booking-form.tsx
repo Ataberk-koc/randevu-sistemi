@@ -73,7 +73,7 @@ export function BookingForm() {
       <div className="text-center py-12 px-4 bg-white rounded-2xl shadow-xl border border-emerald-100">
         <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500 mb-4" />
         <h3 className="text-2xl font-bold text-slate-900 mb-2">Randevu Talebiniz Alındı!</h3>
-        <p className="text-slate-500 mb-6">İşletmemiz randevunuzu inceleyip en kısa sürede onaylayacaktır. Seçtiğiniz saat sizin için ayrıldı.</p>
+        <p className="text-slate-500 mb-6">İşletmemiz randevunuzu inceleyip en kısa sürede onaylayacaktır. Seçtiğiniz saat sizin için ayrıldı. Lütfen e-posta adresinizi kontrol edin.</p>
         <Button onClick={() => window.location.reload()} variant="outline">Yeni Bir Randevu Al</Button>
       </div>
     );
