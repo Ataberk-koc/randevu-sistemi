@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { addMinutes, setHours, setMinutes, format, isBefore, startOfDay, endOfDay } from "date-fns";
-
+import { sendEmail } from "@/lib/mail"; 
 // --- 1. VERİ GETİRME FONKSİYONLARI (READ) ---
 
 // Randevu listesini getirir
@@ -227,6 +227,77 @@ export async function completeAppointment(id: string) {
     return { success: true };
   } catch (error) {
     console.error("Hata:", error);
+    return { success: false, error: "İşlem başarısız." };
+  }
+}
+
+export async function approveAppointment(id: string) {
+  try {
+    // 1. Randevuyu güncelle ve müşteri bilgilerini çek
+    const appt = await prisma.appointment.update({
+      where: { id },
+      data: { status: "APPROVED" },
+      include: { user: true, service: true }, // Mail atabilmek için detayları getir
+    });
+
+    // 2. E-Posta Gönder
+    const formattedDate = format(new Date(appt.date), "d MMMM yyyy HH:mm");
+    await sendEmail({
+      to: appt.user.email,
+      subject: "Randevunuz Onaylandı! ✅",
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
+          <h2 style="color: #059669;">Randevunuz Onaylandı!</h2>
+          <p>Merhaba <strong>${appt.user.name || 'Değerli Müşterimiz'}</strong>,</p>
+          <p><strong>${appt.service.name}</strong> hizmeti için oluşturduğunuz randevu talebiniz başarıyla onaylanmıştır.</p>
+          <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0 0 10px 0;">📅 <strong>Tarih & Saat:</strong> ${formattedDate}</p>
+            <p style="margin: 0;">💰 <strong>Tutar:</strong> ${appt.service.price} ₺</p>
+          </div>
+          <p>Sizi işletmemizde görmek için sabırsızlanıyoruz. Herhangi bir değişiklik için bizimle iletişime geçebilirsiniz.</p>
+          <p style="color: #64748b; font-size: 14px; margin-top: 30px;">Saygılarımızla,<br/>ATA Kreatif Merkezi</p>
+        </div>
+      `,
+    });
+
+    revalidatePath("/admin/randevular");
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { success: false, error: "İşlem başarısız." };
+  }
+}
+
+// RANDEVUYU İPTAL ETME/REDDETME (-> CANCELLED) + E-POSTA
+export async function cancelAppointment(id: string) {
+  try {
+    // 1. Randevuyu iptal et ve müşteri bilgilerini çek
+    const appt = await prisma.appointment.update({
+      where: { id },
+      data: { status: "CANCELLED" },
+      include: { user: true, service: true },
+    });
+
+    // 2. E-Posta Gönder
+    const formattedDate = format(new Date(appt.date), "d MMMM yyyy HH:mm");
+    await sendEmail({
+      to: appt.user.email,
+      subject: "Randevunuz İptal Edildi ❌",
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
+          <h2 style="color: #dc2626;">Randevu İptali</h2>
+          <p>Merhaba <strong>${appt.user.name || 'Değerli Müşterimiz'}</strong>,</p>
+          <p>Üzülerek bildiririz ki <strong>${formattedDate}</strong> tarihli <strong>${appt.service.name}</strong> randevunuz işletmemiz tarafından iptal edilmiştir.</p>
+          <p>Uygun olan farklı bir gün veya saat için web sitemizden yeniden randevu oluşturabilirsiniz.</p>
+          <p style="color: #64748b; font-size: 14px; margin-top: 30px;">Saygılarımızla,<br/>ATA Kreatif Merkezi</p>
+        </div>
+      `,
+    });
+
+    revalidatePath("/admin/randevular");
+    return { success: true };
+  } catch (error) {
+    console.error(error);
     return { success: false, error: "İşlem başarısız." };
   }
 }

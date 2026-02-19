@@ -57,12 +57,17 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         {/* Sil ve Düzenle Butonları */}
         <div className="flex gap-2 mt-4 md:mt-0">
           <DeleteCustomerButton customerId={customer.id} />
-          <EditCustomerDialog customer={{
+          <EditCustomerDialog customer={JSON.parse(JSON.stringify({
             ...customer,
-            // Convert any Decimal fields to string for client component
-            // Only price fields in User model are in related objects, but for future-proofing, handle here
             // If you add more Decimal fields to User, add them here
-          }} />
+            appointments: customer.appointments.map(appt => ({
+              ...appt,
+              service: {
+                ...appt.service,
+                price: appt.service.price?.toString?.() ?? appt.service.price
+              }
+            }))
+          }))} />
         </div>
       </div>
 
