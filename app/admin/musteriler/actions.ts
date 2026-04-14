@@ -11,7 +11,7 @@ export async function getCustomers() {
       role: Role.CUSTOMER // Sadece müşterileri getir
     },
     include: {
-      appointments: {
+      customerAppointments: {
         include: {
           service: true
         }

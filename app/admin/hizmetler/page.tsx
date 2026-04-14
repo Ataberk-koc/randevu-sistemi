@@ -1,5 +1,6 @@
 import { getServices, deleteService } from "./actions";
 import { ServiceDialog } from "./service-dialog"; // import yoluna dikkat
+import { getProducts } from "../urunler/actions";
 import {
   Table,
   TableBody,
@@ -13,6 +14,7 @@ import { Trash2, Clock } from "lucide-react";
 
 export default async function ServicesPage() {
   const services = await getServices();
+  const products = (await getProducts()) || [];
 
   return (
     <div className="space-y-6 p-8">
@@ -21,7 +23,7 @@ export default async function ServicesPage() {
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Hizmet Yönetimi</h1>
           <p className="text-slate-500">Randevu alınabilecek hizmetleri ve sürelerini yönetin.</p>
         </div>
-        <ServiceDialog />
+        <ServiceDialog products={products} />
       </div>
 
       <div className="bg-white rounded-xl border shadow-sm">
@@ -67,8 +69,9 @@ export default async function ServicesPage() {
                       <ServiceDialog 
                         service={{
                           ...service,
-                          price: Number(service.price) // Decimal -> Number çevrimi kritik!
-                        }} 
+                          price: Number(service.price)
+                        }}
+                        products={products}
                       />
                       
                       {/* SİLME BUTONU */}

@@ -10,7 +10,8 @@ import {
   Package, 
   Settings, 
   LogOut,
-  User
+  User,
+  Banknote
 } from "lucide-react";
 import { cn } from "@/lib/utils"; // Shadcn'den gelen sınıf birleştirici
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,16 @@ export default function AdminLayout({
       icon: User,
     },
     {
+      title: "Personel",
+      href: "/admin/personel",
+      icon: User,
+    },
+    {
+      title: "Giderler",
+      href: "/admin/giderler",
+      icon: Banknote,
+    },
+    {
       title: "Ayarlar",
       href: "/admin/ayarlar",
       icon: Settings,
@@ -63,7 +74,7 @@ export default function AdminLayout({
       {/* SOL MENÜ (SIDEBAR) */}
       <aside className="w-64 bg-slate-900 text-white hidden md:flex flex-col">
         <div className="p-6 border-b border-slate-800">
-          <h2 className="text-2xl font-bold tracking-tight text-blue-400">RandevuSistemi</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-blue-400">RandevuX</h2>
           <p className="text-xs text-slate-400 mt-1">Yönetim Paneli</p>
         </div>
 

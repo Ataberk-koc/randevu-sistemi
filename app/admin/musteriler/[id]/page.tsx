@@ -5,6 +5,10 @@ import { tr } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { User, Phone, MapPin, Mail, Calendar } from "lucide-react";
+// Basit bir WhatsApp ikon SVG'si
+const WhatsAppIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor" className="w-4 h-4"><path d="M380.9 97.1C339-18.6 197.5-35.6 110.6 51.3c-87 87-69.9 228.5 45.8 270.3l-12.7 46.5c-2.2 8.1 5.3 15.6 13.4 13.4l46.5-12.7c41.8 19.2 89.2 19.2 131 0 115.7-41.8 132.8-183.3 45.8-270.3zM224 400c-39.8 0-77.2-13.7-107.2-36.7l-60.7 16.6 16.6-60.7C61.7 277.2 48 239.8 48 200 48 104.5 104.5 48 200 48s152 56.5 152 152c0 39.8-13.7 77.2-36.7 107.2l16.6 60.7-60.7-16.6C301.2 386.3 263.8 400 224 400z"/></svg>
+);
 import { EditCustomerDialog } from "./EditCustomerDialog";
 import { DeleteCustomerButton } from "./DeleteCustomerButton";
 
@@ -17,7 +21,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const customer = await prisma.user.findUnique({
     where: { id },
     include: {
-      appointments: {
+      customerAppointments: {
         include: { service: true },
         orderBy: { date: 'desc' }
       }
@@ -27,7 +31,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   if (!customer) return notFound();
 
   // Finansal özet: Sadece tamamlanmış (COMPLETED) randevuları hesapla
-  const totalSpent = customer.appointments
+  const totalSpent = customer.customerAppointments
     .filter(a => a.status === "COMPLETED")
     .reduce((sum, a) => sum + Number(a.service.price), 0);
 
@@ -42,8 +46,22 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           <div className="space-y-2">
             <h1 className="text-3xl font-bold text-slate-900">{customer.name || "İsimsiz Müşteri"}</h1>
             <div className="flex flex-wrap gap-4 text-sm text-slate-500">
-              <span className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded border">
-                <Phone className="w-3.5 h-3.5 text-blue-500" /> {customer.phone || "Telefon yok"}
+              <span className="flex items-center gap-4 bg-slate-50 px-2 py-1 rounded border">
+                <span className="flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5 text-blue-500" />
+                  {customer.phone || "Telefon yok"}
+                </span>
+                {customer.phone && (
+                  <a
+                    href={`https://wa.me/${customer.phone.replace(/[^0-9]/g, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-green-600 hover:text-green-800 font-semibold px-2"
+                  >
+                    <WhatsAppIcon />
+                    <span className="hidden sm:inline">Whatsapp'tan yaz</span>
+                  </a>
+                )}
               </span>
               <span className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded border">
                 <Mail className="w-3.5 h-3.5 text-orange-500" /> {customer.email || "E-posta yok"}
@@ -60,7 +78,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           <EditCustomerDialog customer={JSON.parse(JSON.stringify({
             ...customer,
             // If you add more Decimal fields to User, add them here
-            appointments: customer.appointments.map(appt => ({
+            customerAppointments: customer.customerAppointments.map(appt => ({
               ...appt,
               service: {
                 ...appt.service,
@@ -90,7 +108,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             <CardTitle className="text-xs font-bold uppercase text-slate-500 tracking-wider">Seans Sayısı</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black text-slate-900">{customer.appointments.length}</div>
+            <div className="text-3xl font-black text-slate-900">{customer.customerAppointments.length}</div>
           </CardContent>
         </Card>
 
@@ -124,8 +142,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customer.appointments.length > 0 ? (
-                customer.appointments.map((appt) => (
+              {customer.customerAppointments.length > 0 ? (
+                customer.customerAppointments.map((appt) => (
                   <TableRow key={appt.id} className="hover:bg-slate-50/80 transition-colors">
                     <TableCell className="text-slate-600 font-medium">
                       {format(new Date(appt.date), "d MMM yyyy HH:mm", { locale: tr })}

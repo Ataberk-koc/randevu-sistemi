@@ -9,13 +9,22 @@ export async function getPublicServices() {
     where: { isActive: true },
     select: { id: true, name: true, duration: true, price: true, description: true } 
   });
-  
   return services.map(s => ({ ...s, price: Number(s.price) }));
 }
 
-// 2. Müşteriye Müsait Saatleri Gösterir (Admin ile aynı mantık)
-export async function getPublicAvailableSlots(dateStr: string, serviceId: string) {
-  if (!dateStr || !serviceId) return [];
+// YENİ: 2. Vitrinde Gösterilecek Personelleri Çeker
+export async function getPublicStaff() {
+  return await prisma.user.findMany({
+    where: { 
+      role: { in: ["STAFF", "ADMIN"] } // Personel veya Admin olanları getir
+    },
+    select: { id: true, name: true }
+  });
+}
+
+// 3. Müşteriye PERSONEL BAZLI Müsait Saatleri Gösterir
+export async function getPublicAvailableSlots(dateStr: string, serviceId: string, staffId: string) {
+  if (!dateStr || !serviceId || !staffId) return [];
 
   const service = await prisma.service.findUnique({ where: { id: String(serviceId) } });
   if (!service) return [];
@@ -28,11 +37,12 @@ export async function getPublicAvailableSlots(dateStr: string, serviceId: string
   const dayStart = startOfDay(selectedDate);
   const dayEnd = endOfDay(selectedDate);
 
-  // NOT: "CANCELLED" olmayan tüm randevular saati kapatır. (PENDING dahil)
+  // SADECE SEÇİLEN PERSONELİN RANDEVULARINI GETİR (Çakışmayı önler)
   const appointments = await prisma.appointment.findMany({
     where: {
       date: { gte: dayStart, lte: dayEnd },
       status: { not: "CANCELLED" },
+      staffId: staffId, 
     },
   });
 
@@ -54,7 +64,7 @@ export async function getPublicAvailableSlots(dateStr: string, serviceId: string
       );
     });
 
-    if (!isConflict && isBefore(new Date(), currentTime)) { // Geçmiş saatleri de gizler
+    if (!isConflict && isBefore(new Date(), currentTime)) {
       slots.push(format(currentTime, "HH:mm"));
     }
     currentTime = addMinutes(currentTime, interval);
@@ -62,32 +72,26 @@ export async function getPublicAvailableSlots(dateStr: string, serviceId: string
   return slots;
 }
 
-// 3. Müşterinin Kendi Randevusunu Oluşturması ("PENDING" statüsü ile)
+// 4. Müşterinin Kendi Randevusunu Oluşturması (Personel Id ile)
 export async function createPublicAppointment(formData: FormData) {
   const name = formData.get("name") as string;
   const email = formData.get("email") as string;
-  // DÜZELTME 1: Null olma ihtimalini tamamen ortadan kaldırdık
   const phone = (formData.get("phone") as string) || ""; 
   const serviceId = formData.get("serviceId") as string;
+  const staffId = formData.get("staffId") as string; // PERSONEL ID EKLENDİ
   const dateStr = formData.get("date") as string;
   const timeStr = formData.get("time") as string;
 
-  if (!name || !email || !serviceId || !dateStr || !timeStr) {
+  if (!name || !email || !serviceId || !staffId || !dateStr || !timeStr) {
     return { success: false, error: "Lütfen tüm zorunlu alanları doldurun." };
   }
 
   try {
-    // Müşteriyi E-Postasından bul, yoksa yeni müşteri hesabı oluştur
     let user = await prisma.user.findUnique({ where: { email } });
-    
     if (!user) {
       user = await prisma.user.create({
         data: { 
-          name, 
-          email, 
-          phone, 
-          role: "CUSTOMER",
-          // DÜZELTME 2: Şema gereği zorunlu olan password alanı için rastgele bir şifre atadık
+          name, email, phone, role: "CUSTOMER",
           password: Math.random().toString(36).slice(-8) 
         }
       });
@@ -96,32 +100,100 @@ export async function createPublicAppointment(formData: FormData) {
     const [hours, minutes] = timeStr.split(":").map(Number);
     const startDate = setMinutes(setHours(new Date(dateStr), hours), minutes);
 
-    const service = await prisma.service.findUnique({ where: { id: String(serviceId) } });
+    const service = await prisma.service.findUnique({
+      where: { id: String(serviceId) },
+      include: { usages: { include: { product: true } } },
+    });
     if (!service) return { success: false, error: "Hizmet bulunamadı." };
 
     const endDate = addMinutes(startDate, service.duration);
 
-    // Son çakışma kontrolü (Müşteri formu doldururken başkası almış olabilir)
+    // PERSONEL BAZLI ÇAKIŞMA KONTROLÜ
     const conflict = await prisma.appointment.findFirst({
       where: {
         status: { not: "CANCELLED" },
+        staffId: staffId,
         OR: [{ date: { lt: endDate }, endDate: { gt: startDate } }],
       },
     });
 
     if (conflict) {
-      return { success: false, error: "Seçilen saat az önce doldu, lütfen başka bir saat seçin." };
+      return { success: false, error: "Seçilen personelin bu saati az önce doldu, lütfen başka bir saat seçin." };
     }
 
-    // RANDEVUYU BEKLEMEDE (PENDING) OLARAK OLUŞTUR
-    await prisma.appointment.create({
-      data: {
-        userId: user.id,
-        serviceId,
-        date: startDate,
-        endDate: endDate,
-        status: "PENDING", // Admin onaylayana kadar beklemede
-      },
+    // Transaction: Randevu, ürün stok düşüşü ve gider kaydı
+    await prisma.$transaction(async (tx) => {
+      // 1. Randevu oluştur
+      const appointment = await tx.appointment.create({
+        data: {
+          userId: user.id,
+          serviceId,
+          staffId,
+          date: startDate,
+          endDate: endDate,
+          status: "PENDING",
+        },
+      });
+
+      // 2. Ürünlerin adisyon kalemlerini ve giderlerini ekle, toplam maliyeti hesapla
+      let toplamUrunMaliyeti = 0;
+      for (const usage of service.usages) {
+        const urunMaliyet = Number(usage.product.price) * usage.quantity;
+        toplamUrunMaliyeti += urunMaliyet;
+        // Stok düş
+        await tx.product.update({
+          where: { id: usage.productId },
+          data: { stock: { decrement: usage.quantity } },
+        });
+        // Adisyon kalemi (ürün)
+        await tx.appointmentItem.create({
+          data: {
+            appointmentId: appointment.id,
+            name: usage.product.name,
+            type: "PRODUCT",
+            quantity: usage.quantity,
+            unitPrice: usage.product.price,
+            taxRate: usage.product.taxRate,
+            totalPrice: urunMaliyet,
+          },
+        });
+        // Gider kaydı
+        await tx.expense.create({
+          data: {
+            title: `${service.name} için ${usage.product.name} kullanımı`,
+            amount: urunMaliyet,
+            date: new Date(),
+          },
+        });
+      }
+
+      // 3. Kar adisyon kalemi ekle (hizmet fiyatı - ürün maliyeti)
+      const kar = Number(service.price) - toplamUrunMaliyeti;
+      if (kar > 0) {
+        await tx.appointmentItem.create({
+          data: {
+            appointmentId: appointment.id,
+            name: "Kar",
+            type: "SERVICE",
+            quantity: 1,
+            unitPrice: kar,
+            taxRate: 0,
+            totalPrice: kar,
+          },
+        });
+      }
+      // 4. Toplam tutar adisyon kalemi (görselde göstermek için isterseniz, yoksa frontendde hesaplanabilir)
+      // await tx.appointmentItem.create({
+      //   data: {
+      //     appointmentId: appointment.id,
+      //     name: "Toplam Tutar",
+      //     type: "SERVICE",
+      //     quantity: 1,
+      //     unitPrice: Number(service.price),
+      //     taxRate: 0,
+      //     totalPrice: Number(service.price),
+      //   },
+      // });
     });
 
     return { success: true };
@@ -131,30 +203,29 @@ export async function createPublicAppointment(formData: FormData) {
   }
 }
 
-// 4. Müşterinin E-posta ile Kendi Randevularını Sorgulaması
+// 5. Müşterinin E-posta ile Kendi Randevularını Sorgulaması
 export async function getCustomerAppointments(email: string) {
   if (!email) return { success: false, error: "Lütfen bir e-posta adresi girin." };
   
   try {
-    // E-postaya göre kullanıcıyı ve randevularını (hizmet detaylarıyla) getir
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
-        appointments: {
-          include: { service: true },
-          orderBy: { date: 'desc' } // En yeni randevu en üstte
+        customerAppointments: { // BURASI GÜNCELLENDİ (İlişki adı değiştiği için)
+          include: { service: true, staff: true }, // PERSONEL DETAYI DA EKLENDİ
+          orderBy: { date: 'desc' } 
         }
       }
     });
 
-    if (!user || user.appointments.length === 0) {
+    if (!user || user.customerAppointments.length === 0) {
       return { success: false, error: "Bu e-posta adresine ait bir randevu bulunamadı." };
     }
 
-    // Decimal tipini Number'a çevirerek Client'a gönder
-    const formattedAppointments = user.appointments.map(appt => ({
+    const formattedAppointments = user.customerAppointments.map(appt => ({
       id: appt.id,
       serviceName: appt.service.name,
+      staffName: appt.staff?.name || "Belirtilmedi",
       date: appt.date,
       endDate: appt.endDate,
       status: appt.status,

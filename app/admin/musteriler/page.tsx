@@ -11,6 +11,7 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { User, Phone, ChevronRight } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CustomerDialog } from "./customer-dialog";
@@ -41,7 +42,7 @@ export default async function CustomersPage() {
           </TableHeader>
           <TableBody>
             {customers.map((customer) => {
-              const lastAppt = customer.appointments[0];
+              const lastAppt = customer.customerAppointments[0];
               return (
                 <TableRow key={customer.id}>
                   <TableCell>
@@ -55,7 +56,28 @@ export default async function CustomersPage() {
                   <TableCell>
                     <div className="text-sm space-y-1">
                       <div className="flex items-center gap-2 text-slate-600">
-                        <Phone className="h-3 w-3" /> {customer.email} {/* Şemanda telefon varsa buraya ekleyebilirsin */}
+                        {customer.phone && (
+                          <>
+                            <Phone className="h-3 w-3" />
+                            <span>{customer.phone}</span>
+                            <a
+                              href={`https://wa.me/${customer.phone.replace(/[^0-9]/g, "")}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Whatsapp'tan yaz"
+                            >
+                              <span className="inline-flex items-center gap-1 text-green-600 hover:text-green-800 ml-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor" className="w-4 h-4"><path d="M380.9 97.1C339-18.6 197.5-35.6 110.6 51.3c-87 87-69.9 228.5 45.8 270.3l-12.7 46.5c-2.2 8.1 5.3 15.6 13.4 13.4l46.5-12.7c41.8 19.2 89.2 19.2 131 0 115.7-41.8 132.8-183.3 45.8-270.3zM224 400c-39.8 0-77.2-13.7-107.2-36.7l-60.7 16.6 16.6-60.7C61.7 277.2 48 239.8 48 200 48 104.5 104.5 48 200 48s152 56.5 152 152c0 39.8-13.7 77.2-36.7 107.2l16.6 60.7-60.7-16.6C301.2 386.3 263.8 400 224 400z"/></svg>
+                              </span>
+                            </a>
+                          </>
+                        )}
+                        {!customer.phone && (
+                          <span className="text-slate-400">Telefon yok</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-slate-600">
+                        {customer.email}
                       </div>
                     </div>
                   </TableCell>
@@ -68,7 +90,7 @@ export default async function CustomersPage() {
                   </TableCell>
                   <TableCell>
                     <span className="bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full text-xs font-bold">
-                      {customer.appointments.length} Seans
+                      {customer.customerAppointments.length} Seans
                     </span>
                   </TableCell>
                   <TableCell className="text-right">

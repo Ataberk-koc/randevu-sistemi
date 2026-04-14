@@ -9,19 +9,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 1. KULLANICILAR (Hem Müşteri Hem Admin)
+// 1. KULLANICILAR (Hem Müşteri Hem Admin Hem Personel)
 model User {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  address       String?
+  address   String?
   name      String
   email     String   @unique
   phone     String   @unique // Randevu için telefon şart
   password  String   // Şifreli tutulacak
   role      Role     @default(CUSTOMER) // Müşteri mi Admin mi?
 
-  appointments Appointment[] // Müşterinin randevuları
+  // İki farklı ilişkiyi isimlendiriyoruz
+  customerAppointments Appointment[] @relation("CustomerRelation")
+  staffAppointments    Appointment[] @relation("StaffRelation")
 }
 
 // 2. HİZMETLER (Örn: Saç Kesimi, Cilt Bakımı)
@@ -67,10 +69,14 @@ model Appointment {
   
   status      AppointmentStatus @default(PENDING) // Onay bekliyor, Onaylandı, İptal...
   
-  // İlişkiler
+  // 1. İLİŞKİ: MÜŞTERİ (Buraya "CustomerRelation" eklendi)
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  user        User     @relation("CustomerRelation", fields: [userId], references: [id])
   
+  // 2. İLİŞKİ: PERSONEL
+  staffId     String?  
+  staff       User?    @relation("StaffRelation", fields: [staffId], references: [id])
+
   serviceId   String
   service     Service  @relation(fields: [serviceId], references: [id])
 
@@ -82,7 +88,6 @@ model Appointment {
 }
 
 // 5. ADİSYON KALEMLERİ (Hizmet + Ek Ürünlerin toplandığı yer)
-// Bu tablo sayesinde randevu bittikten sonra fiyat değişse bile geçmiş kayıt bozulmaz.
 model AppointmentItem {
   id            String      @id @default(uuid())
   appointmentId String
@@ -145,4 +150,28 @@ model ServiceProduct {
 
   @@index([serviceId])
   @@index([productId])
+}
+
+// 6. GİDERLER (Manuel faturalar ve otomatik ürün kullanımları)
+model Expense {
+  id          String   @id @default(uuid())
+  title       String   // Gider başlığı (Örn: Elektrik Faturası, Boya Kullanımı)
+  amount      Decimal  // Tutar
+  date        DateTime @default(now()) // Giderin tarihi
+  category    String   @default("MANUAL") // "MANUAL" (Elle eklenen) veya "AUTO" (Sistem kestiği)
+  description String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model FormTemplate {
+  id          String   @id @default(uuid())
+  title       String   // Dokümanın başlığı (Örn: "Lazer Epilasyon Onay Formu")
+  description String?  // Kısa bir not
+  fileUrl     String   // Dosyanın sunucudaki konumu (Örn: "/uploads/forms/lazer-onay.pdf")
+  fileType    String?  // "application/pdf" vs.
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

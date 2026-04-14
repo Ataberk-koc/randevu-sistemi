@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,6 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Plus, Loader2, Pencil } from "lucide-react";
 import { upsertService } from "./actions";
@@ -23,14 +24,69 @@ interface Service {
   price: Decimal | number | string;
   duration: number;
   description?: string | null;
+  products?: { id: string; name: string; quantity: number }[];
 }
 
-export function ServiceDialog({ service }: { service?: Service }) {
+
+export function ServiceDialog({ service, products }: { service?: Service, products: { id: string; name: string; price?: number }[] }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Always derive initial selectedProducts from service prop only once on mount
+  const [selectedProducts, setSelectedProducts] = useState<{ id: string; name: string; price: number; quantity: number }[]>(() => {
+    if (!service?.products) return [];
+    return service.products.map((p) => {
+      const prod = products.find((pr) => pr.id === p.id);
+      return {
+        id: p.id,
+        name: p.name,
+        price: prod?.price ?? 0,
+        quantity: p.quantity,
+      };
+    });
+  });
+  const [price, setPrice] = useState<number>(service ? Number(service.price) : 0);
+  const [profit, setProfit] = useState<string>("");
+  const [showProductSelect, setShowProductSelect] = useState(false);
+
+
+  function handleProductToggle(productId: string) {
+    setSelectedProducts((prev) => {
+      const exists = prev.find((p) => p.id === productId);
+      if (exists) {
+        return prev.filter((p) => p.id !== productId);
+      } else {
+        const prod = products.find((p) => p.id === productId);
+        if (!prod) return prev;
+        return [...prev, { id: prod.id, name: prod.name, price: prod.price ?? 0, quantity: 1 }];
+      }
+    });
+  }
+
+  // Update price when selectedProducts or profit changes
+  useEffect(() => {
+    const productsTotal = selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+    setPrice(productsTotal + (profit ? Number(profit) : 0));
+  }, [selectedProducts, profit]);
+
+  const productsTotal = selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+  const totalPrice = productsTotal + (profit ? Number(profit) : 0);
+
+
+  function handleQuantityChange(productId: string, quantity: number) {
+    setSelectedProducts((prev) => prev.map((p) => p.id === productId ? { ...p, quantity } : p));
+  }
+
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
+    // Ürünleri formData'ya ekle
+    selectedProducts.forEach((prod, idx) => {
+      formData.append(`products[${idx}][id]`, prod.id);
+      formData.append(`products[${idx}][quantity]`, String(prod.quantity));
+    });
+    formData.set("price", String(productsTotal));
+    formData.set("profit", profit ? String(profit) : "");
+    formData.set("totalPrice", String(totalPrice));
     try {
       const result = await upsertService(formData);
       if (result.success) {
@@ -50,8 +106,8 @@ export function ServiceDialog({ service }: { service?: Service }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {service ? (
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
-            <Pencil className="h-4 w-4" />
+          <Button variant="outline" className="flex items-center gap-2">
+            <Pencil className="mr-2 h-4 w-4" /> Düzenle
           </Button>
         ) : (
           <Button className="bg-blue-600 hover:bg-blue-700">
@@ -78,28 +134,76 @@ export function ServiceDialog({ service }: { service?: Service }) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+
+          <div className="grid grid-cols-3 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="price">Ücret (₺)</Label>
+              <Label>Ürün Ücreti (₺)</Label>
               <Input
-                id="price"
-                name="price"
-                type="number"
-                step="0.01"
-                defaultValue={service ? Number(service.price) : ""}
+                value={productsTotal > 0 ? productsTotal : ""}
+                readOnly
                 placeholder="0.00"
-                required
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="duration">Süre (Dakika)</Label>
+              <Label htmlFor="profit">Kar (₺)</Label>
               <Input
-                id="duration"
-                name="duration"
+                id="profit"
+                name="profit"
                 type="number"
-                defaultValue={service?.duration || 30}
-                required
+                step="0.01"
+                value={profit}
+                onChange={e => setProfit(e.target.value.replace(/[^\d.]/g, ""))}
+                placeholder=""
+                autoComplete="off"
               />
+            </div>
+            <div className="grid gap-2">
+              <Label>Toplam Ücret (₺)</Label>
+              <Input
+                value={totalPrice > 0 ? totalPrice : ""}
+                readOnly
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="duration">Süre (Dakika)</Label>
+            <Input
+              id="duration"
+              name="duration"
+              type="number"
+              defaultValue={service?.duration || 30}
+              required
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Kullanılacak Ürünler</Label>
+            <div className="border rounded p-2 bg-gray-50">
+              {products.length === 0 && <span className="text-gray-400">Ürün bulunamadı</span>}
+              {products.map((product) => {
+                const checked = selectedProducts.some((p) => p.id === product.id);
+                return (
+                  <div key={product.id} className="flex items-center gap-2 py-1">
+                    <Checkbox checked={checked} onCheckedChange={() => handleProductToggle(product.id)} id={`prod-${product.id}`} />
+                    <label htmlFor={`prod-${product.id}`} className="flex-1 cursor-pointer select-none">
+                      {product.name} <span className="text-xs text-gray-500">({typeof product.price === 'number' ? product.price.toFixed(2) : ''} ₺)</span>
+                    </label>
+                    {checked && (
+                      <>
+                        <input
+                          type="number"
+                          min={1}
+                          value={selectedProducts.find((p) => p.id === product.id)?.quantity || 1}
+                          onChange={e => handleQuantityChange(product.id, Number(e.target.value))}
+                          className="w-16 border rounded px-2 py-1"
+                        />
+                        <span>adet</span>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 

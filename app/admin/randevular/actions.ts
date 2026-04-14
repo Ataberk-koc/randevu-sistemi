@@ -215,15 +215,57 @@ export async function updateAppointment(formData: FormData) {
   return { success: true };
 }
 
-// RANDEVU TAMAMLAMA
+// RANDEVU TAMAMLAMA (STOK DÜŞME VE OTOMATİK GİDER YAZMA EKLENDİ)
 export async function completeAppointment(id: string) {
   try {
+    // 1. Randevuyu ve içindeki hizmetin kullandığı ürünleri (usages) çekiyoruz
+    const appointment = await prisma.appointment.findUnique({
+      where: { id },
+      include: { 
+        service: {
+          include: { usages: { include: { product: true } } }
+        }
+      }
+    });
+
+    if (!appointment) return { success: false, error: "Randevu bulunamadı." };
+
+    // 2. Randevunun durumunu "COMPLETED" yap
     await prisma.appointment.update({
       where: { id },
       data: { status: "COMPLETED" },
     });
+
+    // 3. Kullanılan ürünler varsa Stoktan düş ve Giderek yaz
+    if (appointment.service.usages && appointment.service.usages.length > 0) {
+      for (const usage of appointment.service.usages) {
+        
+        // A) Stoktan Düş
+        await prisma.product.update({
+          where: { id: usage.product.id },
+          data: { stock: { decrement: usage.quantity } }
+        });
+
+        // B) Gider (Expense) Tablosuna Yaz
+        // (Ürünün price değerini maliyet kabul ediyoruz. Eğer gerçek maliyeti
+        // farklıysa ileride Product tablosuna 'cost' diye bir alan eklenebilir)
+        const expenseAmount = Number(usage.product.price) * usage.quantity;
+        
+        await prisma.expense.create({
+          data: {
+            title: `Otomatik Gider: ${usage.product.name} (Adet: ${usage.quantity})`,
+            amount: expenseAmount,
+            category: "AUTO", // Sistem tarafından otomatik eklendiğini belirtir
+            description: `${appointment.service.name} hizmeti tamamlandığı için stoktan düşüldü.`,
+          }
+        });
+      }
+    }
     
     revalidatePath("/admin/randevular");
+    revalidatePath("/admin/giderler"); // Yeni yapacağımız gider sayfasını da tetikle
+    revalidatePath("/admin/dashboard"); // Dashboard'u tetikle
+    
     return { success: true };
   } catch (error) {
     console.error("Hata:", error);

@@ -7,9 +7,15 @@ import { revalidatePath } from "next/cache";
  * Tüm ürünleri en yeniden en eskiye doğru getirir.
  */
 export async function getProducts() {
-  return await prisma.product.findMany({
+  const products = await prisma.product.findMany({
     orderBy: { createdAt: "desc" },
   });
+  // Decimal tiplerini number'a çevir
+  return products.map((p) => ({
+    ...p,
+    price: typeof p.price === "object" && "toNumber" in p.price ? p.price.toNumber() : p.price,
+    taxRate: typeof p.taxRate === "object" && "toNumber" in p.taxRate ? p.taxRate.toNumber() : p.taxRate,
+  }));
 }
 
 /**

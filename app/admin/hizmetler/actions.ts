@@ -13,8 +13,21 @@ export async function upsertService(formData: FormData) {
   const id = formData.get("id") as string | null;
   const name = formData.get("name") as string;
   const price = parseFloat(formData.get("price") as string) || 0;
-  const duration = parseInt(formData.get("duration") as string) || 30; // Varsayılan 30 dk
+  const duration = parseInt(formData.get("duration") as string) || 30;
   const description = formData.get("description") as string || "";
+
+  // Ürünler (çoklu)
+  const products: { id: string; quantity: number }[] = [];
+  for (const [key, value] of formData.entries()) {
+    const match = key.match(/^products\[(\d+)\]\[(id|quantity)\]$/);
+    if (match) {
+      const idx = parseInt(match[1]);
+      const field = match[2];
+      if (!products[idx]) products[idx] = { id: "", quantity: 1 };
+      if (field === "id") products[idx].id = value as string;
+      if (field === "quantity") products[idx].quantity = parseInt(value as string) || 1;
+    }
+  }
 
   const data = {
     name,
@@ -25,16 +38,28 @@ export async function upsertService(formData: FormData) {
   };
 
   try {
+    let service;
     if (id && id !== "undefined" && id !== "") {
       // GÜNCELLEME
-      await prisma.service.update({
+      service = await prisma.service.update({
         where: { id },
         data,
       });
+      // Eski ilişkileri sil
+      await prisma.serviceProduct.deleteMany({ where: { serviceId: id } });
     } else {
       // YENİ KAYIT
-      await prisma.service.create({
-        data,
+      service = await prisma.service.create({ data });
+    }
+
+    // Ürün ilişkilerini ekle
+    if (service && products.length > 0) {
+      await prisma.serviceProduct.createMany({
+        data: products.map((prod) => ({
+          serviceId: service.id,
+          productId: prod.id,
+          quantity: prod.quantity,
+        })),
       });
     }
 
