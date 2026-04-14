@@ -10,8 +10,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { User, Phone, ChevronRight } from "lucide-react";
-import { FaWhatsapp } from "react-icons/fa";
+import { User, Phone, ChevronRight, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CustomerDialog } from "./customer-dialog";

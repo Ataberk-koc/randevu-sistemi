@@ -13,8 +13,8 @@ export async function getProducts() {
   // Decimal tiplerini number'a çevir
   return products.map((p) => ({
     ...p,
-    price: typeof p.price === "object" && "toNumber" in p.price ? p.price.toNumber() : p.price,
-    taxRate: typeof p.taxRate === "object" && "toNumber" in p.taxRate ? p.taxRate.toNumber() : p.taxRate,
+    price: typeof p.price === "object" && "toNumber" in p.price ? (p.price as any).toNumber() : Number(p.price),
+    taxRate: typeof p.taxRate === "object" && "toNumber" in p.taxRate ? (p.taxRate as any).toNumber() : Number(p.taxRate),
   }));
 }
 

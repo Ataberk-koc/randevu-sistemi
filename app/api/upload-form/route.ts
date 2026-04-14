@@ -1,16 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-import { existsSync } from "fs";
+import { put } from "@vercel/blob";
 
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: "50mb",
-    },
-  },
-};
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,25 +19,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Dosya adını oluştur
-    const fileName = `${Date.now()}-${file.name}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "forms");
-
-    // Dizin oluştur (yoksa)
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-
-    const filePath = path.join(uploadDir, fileName);
+    const fileName = `forms/${Date.now()}-${file.name}`;
     const buffer = await file.arrayBuffer();
 
-    await writeFile(filePath, Buffer.from(buffer));
+    // Vercel Blob'a yükle
+    const blob = await put(fileName, Buffer.from(buffer), {
+      access: "public",
+      contentType: file.type,
+    });
 
     // Veritabanına kaydet
     const template = await prisma.formTemplate.create({
       data: {
         title,
         description: description || null,
-        fileUrl: `/uploads/forms/${fileName}`,
+        fileUrl: blob.url,
         fileType: file.type,
       },
     });
