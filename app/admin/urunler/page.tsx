@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
+export const dynamic = "force-dynamic";
 
 export default async function StokPage() {
   const products = await getProducts();

@@ -55,7 +55,7 @@ export async function upsertProduct(formData: FormData) {
       });
     }
 
-    revalidatePath("/admin/stok");
+  revalidatePath("/admin/urunler");
     return { success: true };
   } catch (error) {
     console.error("Ürün kaydedilirken hata oluştu:", error);
@@ -71,7 +71,7 @@ export async function deleteProduct(id: string) {
     await prisma.product.delete({ 
       where: { id } 
     });
-    revalidatePath("/admin/stok");
+revalidatePath("/admin/urunler");
     return { success: true };
   } catch (error) {
     console.error("Ürün silinirken hata oluştu:", error);
