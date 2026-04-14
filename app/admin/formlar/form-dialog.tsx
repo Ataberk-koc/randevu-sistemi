@@ -1,19 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, Upload } from "lucide-react";
-import { saveFormTemplate } from "./actions";
 import { toast } from "sonner";
 
 export function FormDialog() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fileName, setFileName] = useState<string>("");
+  const formRef = useRef<HTMLFormElement>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -21,15 +21,25 @@ export function FormDialog() {
 
     try {
       const formData = new FormData(e.currentTarget);
-      const result = await saveFormTemplate(formData);
+      
+      const response = await fetch("/api/upload-form", {
+        method: "POST",
+        body: formData,
+      });
 
-      if (result.error) {
-        toast.error(result.error);
+      const result = await response.json();
+
+      if (!response.ok) {
+        toast.error(result.error || "Bir hata oluştu");
       } else {
         toast.success("Form şablonu başarıyla eklendi!");
         setOpen(false);
         setFileName("");
-        e.currentTarget.reset();
+        if (formRef.current) {
+          formRef.current.reset();
+        }
+        // Sayfayı yenile
+        window.location.reload();
       }
     } catch (error) {
       toast.error("Bir hata oluştu");
@@ -51,7 +61,7 @@ export function FormDialog() {
         <DialogHeader>
           <DialogTitle>Yeni Form Şablonu Ekle</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">Şablon Başlığı *</Label>
             <Input
