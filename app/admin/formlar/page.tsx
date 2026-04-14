@@ -1,9 +1,11 @@
 // app/admin/formlar/page.tsx
 import { Button } from "@/components/ui/button";
-import { PlusCircle, FileText, Download, Eye } from "lucide-react";
+import { FileText, Download, Eye } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import type { FormTemplate } from "@prisma/client";
 import Link from "next/link";
+import { FormDialog } from "./form-dialog";
+import { DeleteFormButton } from "./delete-form-button";
 
 export default async function FormTemplatesPage() {
   // Veritabanından yüklenen şablonları çekiyoruz
@@ -21,11 +23,8 @@ export default async function FormTemplatesPage() {
           </p>
         </div>
         
-        {/* PDF Yükleme Modal'ını tetikleyecek buton */}
-        <Button className="gap-2">
-          <PlusCircle className="w-4 h-4" />
-          Yeni PDF Şablonu Ekle
-        </Button>
+        {/* PDF Yükleme Dialog'ını tetikleyecek buton */}
+        <FormDialog />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -53,22 +52,27 @@ export default async function FormTemplatesPage() {
                 <p className="text-sm text-slate-600 mb-4 flex-1 line-clamp-2">{template.description}</p>
               )}
 
-              <div className="mt-auto flex gap-2 pt-4 border-t border-slate-100">
-                {/* PDF'i yeni sekmede açmak için */}
-                <Link href={template.fileUrl} target="_blank" className="flex-1">
-                  <Button variant="outline" className="w-full gap-2 text-xs" size="sm">
-                    <Eye className="w-3 h-3" />
-                    Görüntüle
-                  </Button>
-                </Link>
+              <div className="mt-auto flex flex-col gap-2 pt-4 border-t border-slate-100">
+                <div className="flex gap-2">
+                  {/* PDF'i yeni sekmede açmak için */}
+                  <Link href={template.fileUrl} target="_blank" className="flex-1">
+                    <Button variant="outline" className="w-full gap-2 text-xs" size="sm">
+                      <Eye className="w-3 h-3" />
+                      Görüntüle
+                    </Button>
+                  </Link>
+                  
+                  {/* Cihaza indirmek için (download attribute'u ile) */}
+                  <Link href={template.fileUrl} download className="flex-1">
+                    <Button className="w-full gap-2 text-xs bg-slate-900" size="sm">
+                      <Download className="w-3 h-3" />
+                      İndir
+                    </Button>
+                  </Link>
+                </div>
                 
-                {/* Cihaza indirmek için (download attribute'u ile) */}
-                <Link href={template.fileUrl} download className="flex-1">
-                  <Button className="w-full gap-2 text-xs bg-slate-900" size="sm">
-                    <Download className="w-3 h-3" />
-                    İndir
-                  </Button>
-                </Link>
+                {/* Silme Butonu */}
+                <DeleteFormButton id={template.id} />
               </div>
             </div>
           ))

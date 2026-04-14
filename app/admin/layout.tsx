@@ -11,7 +11,8 @@ import {
   Settings, 
   LogOut,
   User,
-  Banknote
+  Banknote,
+  FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils"; // Shadcn'den gelen sınıf birleştirici
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,11 @@ export default function AdminLayout({
       title: "Giderler",
       href: "/admin/giderler",
       icon: Banknote,
+    },
+    {
+      title: "Form & Dokümanlar",
+      href: "/admin/formlar",
+      icon: FileText,
     },
     {
       title: "Ayarlar",
