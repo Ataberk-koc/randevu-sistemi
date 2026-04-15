@@ -67,6 +67,18 @@ export async function getAvailableSlots(dateStr: string, serviceId: string) {
   if (!service) return [];
 
   const selectedDate = new Date(dateStr);
+  
+  // İşletme takviminde bu gün kapalı mı kontrol et
+  const dayOfWeek = selectedDate.getDay(); // 0: Pazar, 1: Pazartesi, ...
+  const workingDay = await prisma.workingDay.findUnique({
+    where: { dayOfWeek }
+  });
+  
+  // Gün kapalı ise müsait saat yok
+  if (workingDay?.isClosed) {
+    return [];
+  }
+
   const startHour = 9; // Mesai başlangıcı 09:00
   const endHour = 18;  // Mesai bitişi 18:00
   const interval = 30; // 30 dakikalık periyotlar
@@ -135,6 +147,16 @@ export async function createAppointment(formData: FormData) {
   const [hours, minutes] = timeStr.split(":").map(Number);
   const startDate = setMinutes(setHours(new Date(dateStr), hours), minutes);
 
+  // İşletme takviminde bu gün kapalı mı kontrol et (Arka uç doğrulaması)
+  const dayOfWeek = startDate.getDay(); // 0: Pazar, 1: Pazartesi, ...
+  const workingDay = await prisma.workingDay.findUnique({
+    where: { dayOfWeek }
+  });
+  
+  if (workingDay?.isClosed) {
+    return { success: false, error: "İşletme bu gün kapalı. Lütfen açık bir gün seçin." };
+  }
+
   const service = await prisma.service.findUnique({ where: { id: String(serviceId) } });
   if (!service) return { success: false, error: "Hizmet bulunamadı." };
 
@@ -175,6 +197,16 @@ export async function updateAppointment(formData: FormData) {
   const serviceId = formData.get("serviceId") as string;
 
   const newStartDate = new Date(dateString);
+
+  // İşletme takviminde bu gün kapalı mı kontrol et (Arka uç doğrulaması)
+  const dayOfWeek = newStartDate.getDay(); // 0: Pazar, 1: Pazartesi, ...
+  const workingDay = await prisma.workingDay.findUnique({
+    where: { dayOfWeek }
+  });
+  
+  if (workingDay?.isClosed) {
+    return { success: false, error: "İşletme bu gün kapalı. Lütfen açık bir gün seçin." };
+  }
 
   const service = await prisma.service.findUnique({
     where: { id: String(serviceId) },

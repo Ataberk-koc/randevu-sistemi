@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getPublicServices, getPublicStaff, getPublicAvailableSlots, createPublicAppointment } from "./actions";
+import { getPublicServices, getPublicStaff, getPublicAvailableSlots, createPublicAppointment, getClosedDates } from "./actions";
 import { Loader2, CalendarClock, CheckCircle2, User } from "lucide-react"; 
 import { toast } from "sonner";
 
@@ -30,6 +30,8 @@ export function BookingForm() {
   const [services, setServices] = useState<Service[]>([]); 
   const [staffList, setStaffList] = useState<Staff[]>([]); 
   const [slots, setSlots] = useState<string[]>([]);
+  const [closedDayOfWeeks, setClosedDayOfWeeks] = useState<number[]>([]);
+  const [daysOffDates, setDaysOffDates] = useState<string[]>([]);
   
   const [selectedService, setSelectedService] = useState<Service | null>(null); 
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null); 
@@ -38,8 +40,34 @@ export function BookingForm() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    getPublicServices().then(data => setServices(data as Service[]));
-    getPublicStaff().then(data => setStaffList(data as Staff[]));
+    const loadData = async () => {
+      try {
+        const services = await getPublicServices();
+        setServices(services as Service[]);
+      } catch (err) {
+        console.error('Hizmetler yüklenemedi:', err);
+      }
+
+      try {
+        const staff = await getPublicStaff();
+        setStaffList(staff as Staff[]);
+      } catch (err) {
+        console.error('Personel yüklenemedi:', err);
+      }
+
+      try {
+        console.log('getClosedDates çağrılıyor...');
+        const closedData = await getClosedDates();
+        console.log('Kapalı günler geri geldi:', closedData); // Debug log - DEĞERLENDIR
+        console.log('Kapalı dayOfWeeks:', closedData.closedDayOfWeeks);
+        setClosedDayOfWeeks(closedData.closedDayOfWeeks);
+        setDaysOffDates(closedData.daysOffDates);
+      } catch (err) {
+        console.error('Kapalı günler yüklenemedi:', err);
+      }
+    };
+
+    loadData();
   }, []);
 
   const handleDateSelect = async (date: Date | undefined) => {
@@ -156,7 +184,19 @@ export function BookingForm() {
                 selected={selectedDate} 
                 onSelect={handleDateSelect} 
                 locale={tr} 
-                disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))} 
+                disabled={(date) => {
+                  // Geçmiş günleri disable et
+                  if (date < new Date(new Date().setHours(0,0,0,0))) return true;
+                  
+                  // Pazar (0), Pazartesi (1), vb. kontrol
+                  if (closedDayOfWeeks.includes(date.getDay())) return true;
+                  
+                  // Özel tatil günlerini kontrol et
+                  const dateStr = date.toISOString().split('T')[0];
+                  if (daysOffDates.includes(dateStr)) return true;
+                  
+                  return false;
+                }}
                 className="bg-transparent"
               />
             </div>

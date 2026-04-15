@@ -32,14 +32,19 @@ async function main() {
     { name: 'Komple Masaj', duration: 90, price: 2500, bufferTime: 30 },
   ]
 
-  // Not: Decimal tipi için string veya number verebilirsin, Prisma halleder.
+  // Varsa atla, yoksa oluştur (duplicate hatasını önle)
   for (const s of servicesData) {
-    await prisma.service.create({ 
-      data: {
-        ...s,
-        price: s.price // Decimal dönüşümünü Prisma otomatik yapar
-      } 
-    })
+    const existing = await prisma.service.findFirst({
+      where: { name: s.name }
+    });
+    if (!existing) {
+      await prisma.service.create({ 
+        data: {
+          ...s,
+          price: s.price
+        }
+      })
+    }
   }
   console.log('✂️  Hizmetler eklendi.')
 
@@ -49,22 +54,24 @@ async function main() {
     { name: 'Keratin Bakım Yağı', price: 800, taxRate: 20, stock: 20 },
   ]
 
+  // Varsa atla, yoksa oluştur (duplicate hatasını önle)
   for (const p of productsData) {
-    await prisma.product.create({ 
-      data: {
-        ...p,
-        price: p.price
-      }
-    })
+    const existing = await prisma.product.findFirst({
+      where: { name: p.name }
+    });
+    if (!existing) {
+      await prisma.product.create({ 
+        data: {
+          ...p,
+          price: p.price
+        }
+      })
+    }
   }
   console.log('🛍️  Ürünler eklendi.')
 
-  console.log('✅ Seed işlemi tamamlandı!')
-}
-
-console.log('📅 Varsayılan çalışma günleri oluşturuluyor...');
-  
-  // 0=Pazar, 1=Pazartesi ... 6=Cumartesi
+  // 5. Varsayılan çalışma günleri oluştur (0=Pazar, 1=Pazartesi ... 6=Cumartesi)
+  console.log('📅 Varsayılan çalışma günleri oluşturuluyor...');
   for (let i = 0; i <= 6; i++) {
     await prisma.workingDay.upsert({
       where: { dayOfWeek: i },
@@ -78,6 +85,9 @@ console.log('📅 Varsayılan çalışma günleri oluşturuluyor...');
     });
   }
   console.log('✅ Çalışma günleri tablosu hazır.');
+
+  console.log('✅ Seed işlemi tamamlandı!')
+}
 
 main()
   .then(async () => {

@@ -12,7 +12,7 @@ export async function getPublicServices() {
   return services.map(s => ({ ...s, price: Number(s.price) }));
 }
 
-// YENİ: 2. Vitrinde Gösterilecek Personelleri Çeker
+// 2. Vitrinde Gösterilecek Personelleri Çeker
 export async function getPublicStaff() {
   return await prisma.user.findMany({
     where: { 
@@ -20,6 +20,38 @@ export async function getPublicStaff() {
     },
     select: { id: true, name: true }
   });
+}
+
+// YENİ: 2.5. Calendar'da gösterilecek kapalı günleri getir
+export async function getClosedDates(): Promise<{ closedDayOfWeeks: number[]; daysOffDates: string[] }> {
+  try {
+    // İşletme takviminden kapalı günleri getir (Pazar=0, Pazartesi=1, vb.)
+    const workingDays = await prisma.workingDay.findMany({
+      where: { isClosed: true },
+      select: { dayOfWeek: true }
+    });
+
+    // Özel tatil günlerini getir
+    const daysOff = await prisma.dayOff.findMany({
+      select: { date: true }
+    });
+
+    // dayOfWeek listesi: pazar (0), pazartesi (1), ..., cumartesi (6)
+    const closedDayOfWeeks = workingDays
+      .filter(w => typeof w.dayOfWeek === 'number')
+      .map(w => w.dayOfWeek);
+    
+    return {
+      closedDayOfWeeks,
+      daysOffDates: daysOff.map(d => d.date.toISOString().split('T')[0]) // "2024-02-20" formatı
+    };
+  } catch (error) {
+    console.error('getClosedDates hatası:', error);
+    return {
+      closedDayOfWeeks: [],
+      daysOffDates: []
+    };
+  }
 }
 
 // 3. Müşteriye PERSONEL BAZLI Müsait Saatleri Gösterir
@@ -30,6 +62,18 @@ export async function getPublicAvailableSlots(dateStr: string, serviceId: string
   if (!service) return [];
 
   const selectedDate = new Date(dateStr);
+  
+  // İşletme takviminde bu gün kapalı mı kontrol et
+  const dayOfWeek = selectedDate.getDay(); // 0: Pazar, 1: Pazartesi, ...
+  const workingDay = await prisma.workingDay.findUnique({
+    where: { dayOfWeek }
+  });
+  
+  // Gün kapalı ise müsait saat yok
+  if (workingDay?.isClosed) {
+    return [];
+  }
+
   const startHour = 9; 
   const endHour = 18;  
   const interval = 30; 
@@ -99,6 +143,16 @@ export async function createPublicAppointment(formData: FormData) {
 
     const [hours, minutes] = timeStr.split(":").map(Number);
     const startDate = setMinutes(setHours(new Date(dateStr), hours), minutes);
+
+    // İşletme takviminde bu gün kapalı mı kontrol et (Arka uç doğrulaması)
+    const dayOfWeek = startDate.getDay(); // 0: Pazar, 1: Pazartesi, ...
+    const workingDay = await prisma.workingDay.findUnique({
+      where: { dayOfWeek }
+    });
+    
+    if (workingDay?.isClosed) {
+      return { success: false, error: "İşletme bu gün kapalı. Lütfen açık bir gün seçin." };
+    }
 
     const service = await prisma.service.findUnique({
       where: { id: String(serviceId) },
