@@ -45,6 +45,7 @@ export function ServiceDialog({ service, products }: { service?: Service, produc
     });
   });
   const [price, setPrice] = useState<number>(service ? Number(service.price) : 0);
+  const [productPrice, setProductPrice] = useState<string>("");
   const [profit, setProfit] = useState<string>("");
   const [showProductSelect, setShowProductSelect] = useState(false);
 
@@ -62,14 +63,16 @@ export function ServiceDialog({ service, products }: { service?: Service, produc
     });
   }
 
+  const productsTotal = selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+
   // Update price when selectedProducts or profit changes
   useEffect(() => {
-    const productsTotal = selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0);
-    setPrice(productsTotal + (profit ? Number(profit) : 0));
-  }, [selectedProducts, profit]);
+    const useProductPrice = productPrice ? Number(productPrice) : productsTotal;
+    setPrice(useProductPrice + (profit ? Number(profit) : 0));
+  }, [selectedProducts, profit, productPrice, productsTotal]);
 
-  const productsTotal = selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0);
-  const totalPrice = productsTotal + (profit ? Number(profit) : 0);
+  const useProductPrice = productPrice ? Number(productPrice) : productsTotal;
+  const totalPrice = useProductPrice + (profit ? Number(profit) : 0);
 
 
   function handleQuantityChange(productId: string, quantity: number) {
@@ -84,7 +87,8 @@ export function ServiceDialog({ service, products }: { service?: Service, produc
       formData.append(`products[${idx}][id]`, prod.id);
       formData.append(`products[${idx}][quantity]`, String(prod.quantity));
     });
-    formData.set("price", String(productsTotal));
+    const finalProductPrice = productPrice ? Number(productPrice) : productsTotal;
+    formData.set("price", String(finalProductPrice));
     formData.set("profit", profit ? String(profit) : "");
     formData.set("totalPrice", String(totalPrice));
     try {
@@ -137,10 +141,13 @@ export function ServiceDialog({ service, products }: { service?: Service, produc
 
           <div className="grid grid-cols-3 gap-4">
             <div className="grid gap-2">
-              <Label>Ürün Ücreti (₺)</Label>
+              <Label htmlFor="productPrice">Ürün Ücreti (₺)</Label>
               <Input
-                value={productsTotal > 0 ? productsTotal : ""}
-                readOnly
+                id="productPrice"
+                type="number"
+                step="0.01"
+                value={productPrice}
+                onChange={e => setProductPrice(e.target.value.replace(/[^\d.]/g, ""))}
                 placeholder="0.00"
               />
             </div>
