@@ -1,5 +1,6 @@
-import { getProducts, deleteProduct } from "./actions";
+import { getProducts } from "./actions";
 import { ProductDialog } from "./product-dialog";
+import { ProductDeleteButton } from "./product-delete-button";
 import {
   Table,
   TableBody,
@@ -8,8 +9,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function StokPage() {
@@ -93,20 +92,10 @@ export default async function StokPage() {
                       />
 
                       {/* Silme İşlemi */}
-                      <form
-                        action={async () => {
-                          "use server";
-                          await deleteProduct(product.id);
-                        }}
-                      >
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </form>
+                      <ProductDeleteButton
+                        productId={product.id}
+                        productName={product.name}
+                      />
                     </div>
                   </TableCell>
                 </TableRow>
