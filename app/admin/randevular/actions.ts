@@ -79,8 +79,14 @@ export async function getAvailableSlots(dateStr: string, serviceId: string) {
     return [];
   }
 
-  const startHour = 9; // Mesai başlangıcı 09:00
-  const endHour = 18;  // Mesai bitişi 18:00
+  // WorkingDay'den gerçek mesai saatlerini oku
+  const [startHourStr, startMinStr] = workingDay?.startTime.split(':') || ['09', '00'];
+  const [endHourStr, endMinStr] = workingDay?.endTime.split(':') || ['18', '00'];
+  const startHour = parseInt(startHourStr);
+  const startMinute = parseInt(startMinStr);
+  const endHour = parseInt(endHourStr);
+  const endMinute = parseInt(endMinStr);
+  
   const interval = 30; // 30 dakikalık periyotlar
 
   // O günkü mevcut randevuları çek
@@ -98,8 +104,8 @@ export async function getAvailableSlots(dateStr: string, serviceId: string) {
   });
 
   const slots = [];
-  let currentTime = setMinutes(setHours(selectedDate, startHour), 0);
-  const endTime = setMinutes(setHours(selectedDate, endHour), 0);
+  let currentTime = setMinutes(setHours(selectedDate, startHour), startMinute);
+  const endTime = setMinutes(setHours(selectedDate, endHour), endMinute);
 
   // Mesai saatleri içinde döngü kur
   while (isBefore(currentTime, endTime)) {
@@ -157,10 +163,32 @@ export async function createAppointment(formData: FormData) {
     return { success: false, error: "İşletme bu gün kapalı. Lütfen açık bir gün seçin." };
   }
 
+  // Çalışma saatleri kontrolü
+  const [startHourStr, startMinStr] = workingDay?.startTime.split(':') || ['09', '00'];
+  const [endHourStr, endMinStr] = workingDay?.endTime.split(':') || ['18', '00'];
+  const workStartHour = parseInt(startHourStr);
+  const workStartMinute = parseInt(startMinStr);
+  const workEndHour = parseInt(endHourStr);
+  const workEndMinute = parseInt(endMinStr);
+
+  const appointmentStartMinutes = startDate.getHours() * 60 + startDate.getMinutes();
+  const workStartMinutes = workStartHour * 60 + workStartMinute;
+  const workEndMinutes = workEndHour * 60 + workEndMinute;
+
+  if (appointmentStartMinutes < workStartMinutes || appointmentStartMinutes >= workEndMinutes) {
+    return { success: false, error: `Seçilen saat çalışma saatleri dışında. Çalışma saatleri: ${workingDay?.startTime} - ${workingDay?.endTime}` };
+  }
+
   const service = await prisma.service.findUnique({ where: { id: String(serviceId) } });
   if (!service) return { success: false, error: "Hizmet bulunamadı." };
 
   const endDate = addMinutes(startDate, service.duration);
+
+  // Hizmet bitiş saati çalışma saatleri içinde mi kontrol et
+  const appointmentEndMinutes = endDate.getHours() * 60 + endDate.getMinutes();
+  if (appointmentEndMinutes > workEndMinutes) {
+    return { success: false, error: `Hizmet süresi çalışma saatlerini aşıyor. Çalışma saatleri: ${workingDay?.startTime} - ${workingDay?.endTime}` };
+  }
 
   // Çakışma Kontrolü (Tekrar)
   const conflict = await prisma.appointment.findFirst({
@@ -208,6 +236,22 @@ export async function updateAppointment(formData: FormData) {
     return { success: false, error: "İşletme bu gün kapalı. Lütfen açık bir gün seçin." };
   }
 
+  // Çalışma saatleri kontrolü
+  const [startHourStr, startMinStr] = workingDay?.startTime.split(':') || ['09', '00'];
+  const [endHourStr, endMinStr] = workingDay?.endTime.split(':') || ['18', '00'];
+  const workStartHour = parseInt(startHourStr);
+  const workStartMinute = parseInt(startMinStr);
+  const workEndHour = parseInt(endHourStr);
+  const workEndMinute = parseInt(endMinStr);
+
+  const appointmentStartMinutes = newStartDate.getHours() * 60 + newStartDate.getMinutes();
+  const workStartMinutes = workStartHour * 60 + workStartMinute;
+  const workEndMinutes = workEndHour * 60 + workEndMinute;
+
+  if (appointmentStartMinutes < workStartMinutes || appointmentStartMinutes >= workEndMinutes) {
+    return { success: false, error: `Seçilen saat çalışma saatleri dışında. Çalışma saatleri: ${workingDay?.startTime} - ${workingDay?.endTime}` };
+  }
+
   const service = await prisma.service.findUnique({
     where: { id: String(serviceId) },
   });
@@ -215,6 +259,12 @@ export async function updateAppointment(formData: FormData) {
   if (!service) throw new Error("Hizmet bulunamadı.");
 
   const newEndDate = addMinutes(newStartDate, service.duration);
+
+  // Hizmet bitiş saati çalışma saatleri içinde mi kontrol et
+  const appointmentEndMinutes = newEndDate.getHours() * 60 + newEndDate.getMinutes();
+  if (appointmentEndMinutes > workEndMinutes) {
+    return { success: false, error: `Hizmet süresi çalışma saatlerini aşıyor. Çalışma saatleri: ${workingDay?.startTime} - ${workingDay?.endTime}` };
+  }
 
   // Çakışma kontrolü (Kendi ID'si hariç)
   const conflict = await prisma.appointment.findFirst({

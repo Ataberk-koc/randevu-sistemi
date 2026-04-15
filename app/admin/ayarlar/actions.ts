@@ -24,6 +24,8 @@ export async function saveSettings(formData: FormData) {
     });
   }
 
-  // İşlem bitince sayfayı yenile ki kullanıcı yeni saatleri görsün
-  revalidatePath("/admin/ayarlar");
+  // İşlem bitince GÜM SAYFALARINI YENİLE
+  revalidatePath("/admin/ayarlar");      // Ayarlar sayfası
+  revalidatePath("/admin/randevular");   // Admin randevu listesi
+  revalidatePath("/");                    // Ana sayfa (müşteri booking formu)
 }
