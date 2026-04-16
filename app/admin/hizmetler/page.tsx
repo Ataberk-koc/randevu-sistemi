@@ -75,11 +75,9 @@ export default async function ServicesPage() {
                       />
                       
                       {/* SİLME BUTONU */}
-                      <form action={async () => {
-                        "use server";
-                        await deleteService(service.id);
-                      }}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-50">
+                      <form action={deleteService}>
+                        <input type="hidden" name="id" value={service.id} />
+                        <Button type="submit" variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-50">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </form>

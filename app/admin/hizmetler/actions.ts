@@ -71,7 +71,8 @@ export async function upsertService(formData: FormData) {
   }
 }
 
-export async function deleteService(id: string) {
+export async function deleteService(formData: FormData) {
+  const id = formData.get("id") as string;
   try {
     await prisma.service.delete({ where: { id } });
     revalidatePath("/admin/hizmetler");
