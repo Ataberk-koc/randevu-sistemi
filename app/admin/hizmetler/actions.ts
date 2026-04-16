@@ -71,13 +71,13 @@ export async function upsertService(formData: FormData) {
   }
 }
 
-export async function deleteService(formData: FormData) {
+export async function deleteService(formData: FormData): Promise<void> {
   const id = formData.get("id") as string;
   try {
     await prisma.service.delete({ where: { id } });
     revalidatePath("/admin/hizmetler");
-    return { success: true };
-  } catch {
-    return { success: false, error: "Silinemedi." };
+  } catch (error) {
+    console.error("Silme hatası:", error);
+    throw new Error("Silinemedi.");
   }
 }

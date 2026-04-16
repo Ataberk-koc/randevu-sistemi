@@ -45,7 +45,7 @@ export function ServiceDialog({ service, products }: { service?: Service, produc
     });
   });
   const [price, setPrice] = useState<number>(service ? Number(service.price) : 0);
-  const [productPrice, setProductPrice] = useState<string>("");
+  const [productPrice, setProductPrice] = useState<string>(service ? String(Number(service.price)) : "");
   const [profit, setProfit] = useState<string>("");
   const [showProductSelect, setShowProductSelect] = useState(false);
 
