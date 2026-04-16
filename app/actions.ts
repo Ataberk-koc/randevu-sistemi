@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { addMinutes, setHours, setMinutes, format, isBefore, startOfDay, endOfDay } from "date-fns";
+import { revalidatePath } from "next/cache"; 
 
 // 1. Vitrinde Gösterilecek Hizmetleri Çeker
 export async function getPublicServices() {
@@ -276,6 +277,8 @@ export async function createPublicAppointment(formData: FormData) {
       //   },
       // });
     });
+    revalidatePath("/admin/randevular");
+    revalidatePath("/admin/dashboard");
 
     return { success: true };
   } catch (error) {

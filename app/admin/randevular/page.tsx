@@ -7,6 +7,8 @@ import { EditAppointmentDialog } from "./edit-appointment-dialog";
 import { Button } from "@/components/ui/button";
 import { completeAppointment, approveAppointment, cancelAppointment } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function AppointmentsPage() {
   const rawAppointments = await prisma.appointment.findMany({
     include: { user: true, service: true },
