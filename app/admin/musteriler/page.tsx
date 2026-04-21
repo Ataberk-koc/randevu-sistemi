@@ -82,7 +82,7 @@ export default async function CustomersPage() {
                   </TableCell>
                   <TableCell className="text-sm text-slate-600">
                     {lastAppt ? (
-                      format(new Date(lastAppt.date), "d MMM yyyy", { locale: tr })
+                      format(lastAppt.date, "d MMM yyyy", { locale: tr })
                     ) : (
                       "Randevu yok"
                     )}

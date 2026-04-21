@@ -65,7 +65,7 @@ export default async function AppointmentsPage() {
               <div>
                 <div className="flex justify-between items-start mb-3">
                   <div className="bg-slate-100 text-slate-700 text-xs font-bold px-2 py-1 rounded">
-                    {format(new Date(appt.date), "d MMMM yyyy", { locale: tr })}
+                    {format(appt.date, "d MMMM yyyy", { locale: tr })}
                   </div>
                   {getStatusBadge(appt.status)}
                 </div>
@@ -75,7 +75,7 @@ export default async function AppointmentsPage() {
                 <div className="space-y-2 text-sm text-slate-600 mb-4 bg-slate-50 p-3 rounded-lg">
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-blue-500" />
-                    <span className="font-medium">{format(new Date(appt.date), "HH:mm")} - {format(new Date(appt.endDate), "HH:mm")}</span>
+                    <span className="font-medium">{format(appt.date, "HH:mm")} - {format(appt.endDate, "HH:mm")}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4 text-blue-500" />

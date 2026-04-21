@@ -97,8 +97,8 @@ export default function AppointmentQueryPage() {
                 <div>
                   <h4 className="font-bold text-lg text-slate-900">{appt.serviceName}</h4>
                   <p className="text-slate-500 text-sm mt-1">
-                    {format(new Date(appt.date), "d MMMM yyyy, EEEE", { locale: tr })} <br/>
-                    <strong className="text-slate-700">Saat:</strong> {format(new Date(appt.date), "HH:mm")}
+                    {format(appt.date, "d MMMM yyyy, EEEE", { locale: tr })} <br/>
+                    <strong className="text-slate-700">Saat:</strong> {format(appt.date, "HH:mm")}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-2">

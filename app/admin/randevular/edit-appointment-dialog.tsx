@@ -44,7 +44,7 @@ export function EditAppointmentDialog({
   const [loading, setLoading] = useState(false);
 
   // Tarih formatlama
-  const defaultDate = format(new Date(appointment.date), "yyyy-MM-dd'T'HH:mm");
+  const defaultDate = format(appointment.date as Date, "yyyy-MM-dd'T'HH:mm");
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);

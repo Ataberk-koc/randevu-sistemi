@@ -72,7 +72,7 @@ export default async function ExpensesPage() {
                 expenses.map((expense) => (
                   <tr key={expense.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 text-slate-600">
-                      {format(new Date(expense.date), "d MMM yyyy", { locale: tr })}
+                      {format(expense.date, "d MMM yyyy", { locale: tr })}
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-semibold text-slate-900">{expense.title}</p>

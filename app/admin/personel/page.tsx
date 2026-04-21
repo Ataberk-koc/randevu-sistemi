@@ -60,7 +60,7 @@ export default async function StaffPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-slate-600">
-                      {format(new Date(staff.createdAt), "d MMM yyyy", { locale: tr })}
+                      {format(staff.createdAt, "d MMM yyyy", { locale: tr })}
                     </td>
                     <td className="px-6 py-4">
                       {staff.role === "ADMIN" ? (

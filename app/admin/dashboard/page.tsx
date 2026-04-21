@@ -126,9 +126,9 @@ export default async function DashboardPage() {
                       <p className="text-sm text-slate-500">{appt.service.name}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium text-slate-900">{format(new Date(appt.date), "HH:mm")}</p>
+                      <p className="font-medium text-slate-900">{format(appt.date, "HH:mm")}</p>
                       <p className="text-xs text-slate-500">
-                        {format(new Date(appt.date), "d MMMM", { locale: tr })}
+                        {format(appt.date, "d MMMM", { locale: tr })}
                       </p>
                     </div>
                   </div>
@@ -183,7 +183,7 @@ export default async function DashboardPage() {
                           {customer.name || customer.email.split('@')[0]}
                         </p>
                         <p className="text-[10px] text-slate-500">
-                          {format(new Date(customer.createdAt), "d MMMM HH:mm", { locale: tr })}
+                          {format(customer.createdAt, "d MMMM HH:mm", { locale: tr })}
                         </p>
                       </div>
                       <Link href={`/admin/musteriler/${customer.id}`}>

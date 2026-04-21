@@ -380,7 +380,7 @@ export async function approveAppointment(id: string) {
     });
 
     // 2. E-Posta Gönder
-    const formattedDate = format(new Date(appt.date), "d MMMM yyyy HH:mm");
+    const formattedDate = format(appt.date, "d MMMM yyyy HH:mm");
     await sendEmail({
       to: appt.user.email,
       subject: "Randevunuz Onaylandı! ✅",
@@ -418,7 +418,7 @@ export async function cancelAppointment(id: string) {
     });
 
     // 2. E-Posta Gönder
-    const formattedDate = format(new Date(appt.date), "d MMMM yyyy HH:mm");
+    const formattedDate = format(appt.date, "d MMMM yyyy HH:mm");
     await sendEmail({
       to: appt.user.email,
       subject: "Randevunuz İptal Edildi ❌",

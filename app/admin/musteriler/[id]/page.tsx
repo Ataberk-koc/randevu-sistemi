@@ -118,7 +118,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           </CardHeader>
           <CardContent>
             <div className="text-lg font-bold text-slate-700">
-              {format(new Date(customer.createdAt), "d MMMM yyyy", { locale: tr })}
+              {format(customer.createdAt, "d MMMM yyyy", { locale: tr })}
             </div>
           </CardContent>
         </Card>
@@ -146,7 +146,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                 customer.customerAppointments.map((appt) => (
                   <TableRow key={appt.id} className="hover:bg-slate-50/80 transition-colors">
                     <TableCell className="text-slate-600 font-medium">
-                      {format(new Date(appt.date), "d MMM yyyy HH:mm", { locale: tr })}
+                      {format(appt.date, "d MMM yyyy HH:mm", { locale: tr })}
                     </TableCell>
                     <TableCell className="font-bold text-slate-900">{appt.service.name}</TableCell>
                     <TableCell className="text-right font-bold text-slate-900">{Number(appt.service.price)} ₺</TableCell>

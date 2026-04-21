@@ -153,7 +153,17 @@ export async function createPublicAppointment(formData: FormData) {
     
     // YYYY-MM-DD formatından Date nesnesi oluştur (yerel saat kullan)
     const [year, month, day] = dateStr.split('-').map(Number);
-    const startDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    
+    // Yerel saati oluştur
+    const localDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    
+    // Yerel timezone offset'ini al (dakika cinsinden)
+    // getTimezoneOffset() UTC offset'ini negatif olarak döndürür
+    // Örn: UTC+3 için -180 döndürür
+    const offset = localDate.getTimezoneOffset();
+    
+    // UTC'ye dönüştür: localDate + offset (offset negatif olduğu için aslında çıkarma olur)
+    const startDate = new Date(localDate.getTime() + offset * 60 * 1000);
 
     // İşletme takviminde bu gün kapalı mı kontrol et (Arka uç doğrulaması)
     const dayOfWeek = startDate.getDay(); // 0: Pazar, 1: Pazartesi, ...
