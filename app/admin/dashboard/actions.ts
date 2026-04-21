@@ -6,14 +6,23 @@ import { startOfDay, endOfDay } from "date-fns";
 import { Role } from "@prisma/client";
 
 export async function getDashboardStats() {
-  const today = new Date();
+  // Yerel saat ile bugünün başını ve sonunu hesapla
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const date = now.getDate();
+  
+  // Yerel saat ile gün başı (00:00:00)
+  const todayStart = new Date(year, month, date, 0, 0, 0, 0);
+  // Yerel saat ile gün sonu (23:59:59)
+  const todayEnd = new Date(year, month, date, 23, 59, 59, 999);
   
   // 1. Bugünün randevu sayısı
   const todayAppointmentsCount = await prisma.appointment.count({
     where: {
       date: {
-        gte: startOfDay(today),
-        lte: endOfDay(today),
+        gte: todayStart,
+        lte: todayEnd,
       },
     },
   });
@@ -21,7 +30,7 @@ export async function getDashboardStats() {
   // 2. Yaklaşan 5 randevu
   const upcomingAppointments = await prisma.appointment.findMany({
     where: {
-      date: { gte: today },
+      date: { gte: now },
     },
     take: 5,
     include: {
@@ -40,8 +49,8 @@ export async function getDashboardStats() {
   const todayAppointments = await prisma.appointment.findMany({
     where: {
       date: {
-        gte: startOfDay(today),
-        lte: endOfDay(today),
+        gte: todayStart,
+        lte: todayEnd,
       },
     },
     include: { service: true }

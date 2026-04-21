@@ -62,7 +62,9 @@ export async function getPublicAvailableSlots(dateStr: string, serviceId: string
   const service = await prisma.service.findUnique({ where: { id: String(serviceId) } });
   if (!service) return [];
 
-  const selectedDate = new Date(dateStr);
+  // YYYY-MM-DD formatından Date nesnesi oluştur (yerel saat kullan)
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const selectedDate = new Date(year, month - 1, day, 0, 0, 0, 0);
   
   // İşletme takviminde bu gün kapalı mı kontrol et
   const dayOfWeek = selectedDate.getDay(); // 0: Pazar, 1: Pazartesi, ...
@@ -148,7 +150,10 @@ export async function createPublicAppointment(formData: FormData) {
     }
 
     const [hours, minutes] = timeStr.split(":").map(Number);
-    const startDate = setMinutes(setHours(new Date(dateStr), hours), minutes);
+    
+    // YYYY-MM-DD formatından Date nesnesi oluştur (yerel saat kullan)
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const startDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
 
     // İşletme takviminde bu gün kapalı mı kontrol et (Arka uç doğrulaması)
     const dayOfWeek = startDate.getDay(); // 0: Pazar, 1: Pazartesi, ...
@@ -186,7 +191,10 @@ export async function createPublicAppointment(formData: FormData) {
 
     // Hizmet bitiş saati çalışma saatleri içinde mi kontrol et
     const appointmentEndMinutes = endDate.getHours() * 60 + endDate.getMinutes();
-    if (appointmentEndMinutes > workEndMinutes) {
+    
+    // Bitiş tarihi başlangıç tarihinden farklıysa (gece yarısını aşıyorsa) veya
+    // bitiş saati çalışma saatlerini aşıyorsa hata
+    if (endDate.getDate() !== startDate.getDate() || appointmentEndMinutes > workEndMinutes) {
       return { success: false, error: `Hizmet süresi çalışma saatlerini aşıyor. Çalışma saatleri: ${workingDay?.startTime} - ${workingDay?.endTime}` };
     }
 

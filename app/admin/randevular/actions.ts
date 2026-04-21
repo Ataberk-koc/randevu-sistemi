@@ -66,7 +66,9 @@ export async function getAvailableSlots(dateStr: string, serviceId: string) {
   
   if (!service) return [];
 
-  const selectedDate = new Date(dateStr);
+  // YYYY-MM-DD formatından Date nesnesi oluştur (yerel saat kullan)
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const selectedDate = new Date(year, month - 1, day, 0, 0, 0, 0);
   
   // İşletme takviminde bu gün kapalı mı kontrol et
   const dayOfWeek = selectedDate.getDay(); // 0: Pazar, 1: Pazartesi, ...
@@ -151,7 +153,10 @@ export async function createAppointment(formData: FormData) {
 
   // Tarih ve Saati birleştir
   const [hours, minutes] = timeStr.split(":").map(Number);
-  const startDate = setMinutes(setHours(new Date(dateStr), hours), minutes);
+  
+  // YYYY-MM-DD formatından Date nesnesi oluştur (yerel saat kullan)
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const startDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
 
   // İşletme takviminde bu gün kapalı mı kontrol et (Arka uç doğrulaması)
   const dayOfWeek = startDate.getDay(); // 0: Pazar, 1: Pazartesi, ...
@@ -186,7 +191,10 @@ export async function createAppointment(formData: FormData) {
 
   // Hizmet bitiş saati çalışma saatleri içinde mi kontrol et
   const appointmentEndMinutes = endDate.getHours() * 60 + endDate.getMinutes();
-  if (appointmentEndMinutes > workEndMinutes) {
+  
+  // Bitiş tarihi başlangıç tarihinden farklıysa (gece yarısını aşıyorsa) veya
+  // bitiş saati çalışma saatlerini aşıyorsa hata
+  if (endDate.getDate() !== startDate.getDate() || appointmentEndMinutes > workEndMinutes) {
     return { success: false, error: `Hizmet süresi çalışma saatlerini aşıyor. Çalışma saatleri: ${workingDay?.startTime} - ${workingDay?.endTime}` };
   }
 
@@ -221,10 +229,14 @@ export async function createAppointment(formData: FormData) {
 // RANDEVU GÜNCELLEME (Edit Dialog için)
 export async function updateAppointment(formData: FormData) {
   const id = formData.get("id") as string;
-  const dateString = formData.get("date") as string;
+  const dateString = formData.get("date") as string; // "2025-04-21T14:30" formatında
   const serviceId = formData.get("serviceId") as string;
 
-  const newStartDate = new Date(dateString);
+  // datetime-local input'dan gelen değeri parse et (yerel saat kullan)
+  const [dateStr, timeStr] = dateString.split('T');
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  const newStartDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
 
   // İşletme takviminde bu gün kapalı mı kontrol et (Arka uç doğrulaması)
   const dayOfWeek = newStartDate.getDay(); // 0: Pazar, 1: Pazartesi, ...
@@ -262,7 +274,10 @@ export async function updateAppointment(formData: FormData) {
 
   // Hizmet bitiş saati çalışma saatleri içinde mi kontrol et
   const appointmentEndMinutes = newEndDate.getHours() * 60 + newEndDate.getMinutes();
-  if (appointmentEndMinutes > workEndMinutes) {
+  
+  // Bitiş tarihi başlangıç tarihinden farklıysa (gece yarısını aşıyorsa) veya
+  // bitiş saati çalışma saatlerini aşıyorsa hata
+  if (newEndDate.getDate() !== newStartDate.getDate() || appointmentEndMinutes > workEndMinutes) {
     return { success: false, error: `Hizmet süresi çalışma saatlerini aşıyor. Çalışma saatleri: ${workingDay?.startTime} - ${workingDay?.endTime}` };
   }
 

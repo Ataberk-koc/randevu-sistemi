@@ -48,6 +48,11 @@ export function NewAppointment() {
   const [selectedService, setSelectedService] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<string>("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  const [selectedCustomerName, setSelectedCustomerName] = useState<string>("");
+  
+  // Confirmation Dialog State'i
+  const [showConfirmation, setShowConfirmation] = useState(false);
   
   const [loading, setLoading] = useState(false);
 
@@ -68,11 +73,13 @@ export function NewAppointment() {
     
     setLoading(true);
     
-    // Actions.ts'deki imzaya uygun çağrı: (dateStr, serviceId)
-    const availableSlots = await getAvailableSlots(
-        selectedDate.toISOString(), 
-        selectedService
-    );
+    // Tarih sadece YYYY-MM-DD formatında gönder (zaman dilimi sorunu çözümü)
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+    
+    const availableSlots = await getAvailableSlots(dateStr, selectedService);
     
     setSlots(availableSlots);
     setLoading(false);
@@ -80,15 +87,19 @@ export function NewAppointment() {
   };
 
   // 3. ADIM: Kaydet
-  const handleSave = async (userId: string) => {
-    if (!selectedDate || !selectedSlot) return;
+  const handleSave = async (userId?: string) => {
+    const userIdToSave = userId || selectedCustomerId;
+    if (!selectedDate || !selectedSlot || !userIdToSave) return;
 
     setLoading(true);
     const formData = new FormData();
     formData.append("serviceId", selectedService);
-    formData.append("userId", userId);
-    // Actions.ts createAppointment fonksiyonu "date" ve "time"ı ayrı bekler
-    formData.append("date", selectedDate.toISOString());
+    formData.append("userId", userIdToSave);
+    // Tarih sadece YYYY-MM-DD formatında gönder (zaman dilimi sorunu çözümü)
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    formData.append("date", `${year}-${month}-${day}`);
     formData.append("time", selectedSlot); 
 
     const result = await createAppointment(formData);
@@ -96,15 +107,26 @@ export function NewAppointment() {
     if (result.success) {
         toast.success("Randevu başarıyla oluşturuldu!");
         setOpen(false);
+        setShowConfirmation(false);
         // Formu sıfırla
         setStep(1);
         setSelectedService("");
         setSelectedSlot("");
+        setSelectedCustomerId("");
+        setSelectedCustomerName("");
     } else {
         toast.error(result.error || "Hata oluştu");
     }
     
     setLoading(false);
+  };
+
+  // Müşteri seçildiğinde confirmation dialog'u aç
+  const handleCustomerSelect = (customerId: string) => {
+    const customer = customers.find(c => c.id === customerId);
+    setSelectedCustomerId(customerId);
+    setSelectedCustomerName(customer?.name || customer?.email || "");
+    setShowConfirmation(true);
   };
 
   // Modal kapandığında state'i temizle
@@ -113,6 +135,9 @@ export function NewAppointment() {
     if (!isOpen) {
         setStep(1);
         setSlots([]);
+        setSelectedCustomerId("");
+        setSelectedCustomerName("");
+        setShowConfirmation(false);
     }
   }
 
@@ -216,7 +241,7 @@ export function NewAppointment() {
 
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Müşteri Seçimi</label>
-                        <Select onValueChange={handleSave} disabled={loading}>
+                        <Select onValueChange={handleCustomerSelect} disabled={loading}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Müşteri seç..." />
                             </SelectTrigger>
@@ -236,6 +261,59 @@ export function NewAppointment() {
                 </div>
             )}
         </div>
+
+        {/* --- CONFIRMATION DIALOG --- */}
+        <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Randevuyu Onayla</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="bg-blue-50 p-4 rounded-lg space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="font-medium text-slate-600">Hizmet:</span>
+                  <span className="text-slate-900">{services.find(s => s.id === selectedService)?.name || "-"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium text-slate-600">Tarih:</span>
+                  <span className="text-slate-900">
+                    {selectedDate && format(selectedDate, "d MMMM yyyy", { locale: tr })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium text-slate-600">Saat:</span>
+                  <span className="text-slate-900">{selectedSlot}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium text-slate-600">Müşteri:</span>
+                  <span className="text-slate-900">{selectedCustomerName}</span>
+                </div>
+              </div>
+
+              <p className="text-sm text-slate-600">
+                Bu randevuyu oluşturmak için onaylayın.
+              </p>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowConfirmation(false)}
+                disabled={loading}
+              >
+                İptal
+              </Button>
+              <Button 
+                onClick={() => handleSave()}
+                disabled={loading}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Onayla ve Kaydet"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
